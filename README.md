@@ -18,7 +18,7 @@ Este README da visao geral da raiz e aponta exatamente onde voce encontra cada p
 ```text
 SOWADS/
 ├── Agentes-SEO-AIO/
-│   └── Agente-de-SEO/
+│   └── Sowads-AIO-Workspace/
 │       ├── README.md
 │       └── sowads-content-engine/
 │           ├── README.md
@@ -39,12 +39,12 @@ SOWADS/
 
 ### 1) Fabrica de conteudo (SEO/AIO)
 Entrada principal:
-- `Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/README.md`
+- `Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/README.md`
 
 Arquivos-chave:
-- `Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/system/system.md`
-- `Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/system/user.md`
-- `Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/orchestrator/run_pipeline.py`
+- `Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/system/system.md`
+- `Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/system/user.md`
+- `Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/orchestrator/run_pipeline.py`
 
 Uso tipico:
 1. configurar `.env.local`
@@ -94,5 +94,5 @@ Scripts uteis:
 ---
 
 Se voce abrir apenas 1 arquivo para começar, abra:
-- `Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/README.md` (conteudo)
+- `Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/README.md` (conteudo)
 - `Migracao-do-Site/README.md` (site)

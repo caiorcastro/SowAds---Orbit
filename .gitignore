@@ -8,11 +8,11 @@
 **/*.pyc
 
 # runtime/generated artifacts
-Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/logs/
-Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/cache/
-Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/history/
-Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/batches/
-Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/outputs/
+Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/data/logs/
+Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/data/cache/
+Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/data/history/
+Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/data/batches/
+Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/outputs/
 Migracao-do-Site/context7.log
 Migracao-do-Site/legado/
 Migracao-do-Site/verificacao-visual/

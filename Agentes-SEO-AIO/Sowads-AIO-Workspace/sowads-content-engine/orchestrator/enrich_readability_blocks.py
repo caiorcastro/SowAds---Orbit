@@ -218,7 +218,7 @@ def main() -> int:
     parser.add_argument("--output-csv", required=True)
     parser.add_argument(
         "--report-json",
-        default="Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/outputs/reports/readability_enrichment_report.json",
+        default="Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/outputs/reports/readability_enrichment_report.json",
     )
     args = parser.parse_args()
 

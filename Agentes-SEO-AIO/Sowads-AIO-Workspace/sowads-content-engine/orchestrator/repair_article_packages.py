@@ -104,12 +104,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Repair malformed article content_package fields in CSV outputs.")
     parser.add_argument(
         "--articles-dir",
-        default="Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/outputs/articles",
+        default="Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/outputs/articles",
         help="Directory containing *_articles*.csv files.",
     )
     parser.add_argument(
         "--report-json",
-        default="Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/outputs/reports/article_package_repair_report.json",
+        default="Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/outputs/reports/article_package_repair_report.json",
         help="Path to write repair report JSON.",
     )
     args = parser.parse_args()

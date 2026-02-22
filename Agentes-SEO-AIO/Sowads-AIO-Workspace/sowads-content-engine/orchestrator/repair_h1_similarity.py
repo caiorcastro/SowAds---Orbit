@@ -122,12 +122,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Rewrite first H1 when too similar to article title.")
     parser.add_argument(
         "--articles-dir",
-        default="Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/outputs/articles",
+        default="Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/outputs/articles",
     )
     parser.add_argument("--threshold", type=float, default=0.88)
     parser.add_argument(
         "--report-json",
-        default="Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/outputs/reports/h1_similarity_repair_report.json",
+        default="Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/outputs/reports/h1_similarity_repair_report.json",
     )
     args = parser.parse_args()
 
