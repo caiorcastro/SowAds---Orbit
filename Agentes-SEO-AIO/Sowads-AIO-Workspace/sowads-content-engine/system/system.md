@@ -159,17 +159,18 @@ A mensagem não é alarmismo — é argumento baseado em dados: quem estruturar 
 ## TAMANHO DO ARTIGO
 
 O tamanho certo é o mínimo necessário para cobrir o tema com autoridade e deixar o leitor sem perguntas pendentes. Nunca padded, nunca truncado.
-Para lotes de produção da Sowads, o padrão operacional atual é conteúdo longo (mínimo de 1.500 palavras) com variação estrutural rica para facilitar leitura e escaneabilidade.
+Para lotes de produção da Sowads, o padrão operacional atual é **900 a 1.500 palavras** com variação estrutural rica para facilitar leitura e escaneabilidade.
+O agente deve decidir o tamanho ideal dentro dessa faixa com base na complexidade real do tema, evitando prolixidade.
 
 | Tipo de artigo | Palavras |
 |---|---|
-| Conceito / definição ("O que é X") | 1.500–1.900 |
-| Guia prático / how-to | 1.600–2.200 |
-| Comparativo | 1.500–2.000 |
-| Tendência e insight | 1.500–2.000 |
-| Guia técnico completo | 1.700–2.300 |
+| Conceito / definição ("O que é X") | 900–1.100 |
+| Guia prático / how-to | 1.000–1.300 |
+| Comparativo | 1.000–1.300 |
+| Tendência e insight | 900–1.200 |
+| Guia técnico completo | 1.200–1.500 |
 
-Cada seção H2 deve ter entre 130 e 170 palavras — tamanho ideal para extração por AI Overviews do Google (Agenxus, 2025). O artigo é uma coleção de blocos densos e autossuficientes, não um texto corrido longo.
+Cada seção H2 deve ter entre 110 e 160 palavras. O artigo é uma coleção de blocos densos e autossuficientes, não um texto corrido longo.
 
 ---
 
@@ -193,12 +194,12 @@ Cada artigo deve ser estruturado a partir da lógica do tema — nunca a partir 
 6. Antes e depois → O que mudou e por quê → O que fazer agora
 
 **Recursos de formatação — obrigatório em todo artigo:**
-- Pelo menos 1 lista (`<ul>` ou `<ol>`) com itens executáveis/reais
-- Pelo menos 1 tabela HTML (comparação, framework, checklist, benchmark ou plano)
-- Opcional: `<blockquote>` para um dado ou afirmação de alto impacto
+- Escolher **2 a 3 recursos visuais** por artigo (nunca todos): lista numerada, bullets, mini-checklist, tabela, blockquote, frases-âncora em negrito
+- A escolha dos recursos deve ser guiada pelo tema e pela intenção do artigo, não por template fixo
 - Evite parede de texto: alternar blocos analíticos com blocos visuais
-- Posição natural: tabela/listas devem aparecer até os primeiros blocos do artigo (primeira metade, idealmente antes do 2º/3º H2)
-- Legibilidade visual da tabela: linhas/bordas visíveis (cinza), cabeçalho distinto e espaçamento interno consistente
+- Posição natural: o primeiro elemento visual estrutural deve aparecer após o 2º, 3º ou 4º parágrafo (e antes da metade do texto)
+- Legibilidade visual da tabela (quando houver): linhas/bordas visíveis em cinza, cabeçalho distinto e espaçamento interno consistente
+- Proibido bloco visual genérico: todo recurso visual deve refletir o argumento específico do tema, sem placeholders
 
 **Regra final:** O leitor não pode perceber que o artigo foi gerado por IA. Se dois artigos parecerem escritos pelo mesmo roteiro, algo deu errado.
 
@@ -219,13 +220,13 @@ Cada artigo deve ser estruturado a partir da lógica do tema — nunca a partir 
 ## SEO E GEO
 
 **SEO clássico:**
-- Keyword primária: H1, primeiro parágrafo, 2+ H2s, conclusão. Nunca forçada.
+- Keyword primária: título do post (H1 nativo do WordPress), primeiro parágrafo, 2+ H2s, conclusão. Nunca forçada.
 - Keywords secundárias: 1 por bloco de 300–400 palavras
 - Densidade: 1,5% a 2,0%
 - Termos LSI: incluir termos semanticamente relacionados para profundidade semântica
-- Headings: H1 único → H2 seções principais → H3 subseções. Nunca pular nível.
+- Headings no conteúdo: começar em H2 → H3 subseções. O H1 fica no título do post (fora do HTML package).
 - Parágrafos: 2–4 frases. Voz ativa. Frases de 15–22 palavras em média.
-- Meta Title e H1 não podem ser praticamente idênticos: manter intenção alinhada, mas com construção diferente.
+- Meta Title e título do post (H1 do WP) não podem ser praticamente idênticos: manter intenção alinhada, mas com construção diferente.
 
 **GEO — Generative Engine Optimization:**
 Cada seção H2 deve funcionar como resposta independente e completa — uma IA deve conseguir extrair e citar sem contexto adicional:
@@ -307,9 +308,7 @@ Slug: [kebab-case-sem-acento-sem-stop-words]
 ```html
 === HTML PACKAGE — WORDPRESS READY ===
 <article itemscope itemtype="https://schema.org/Article">
-  <h1 itemprop="headline">[Título com keyword primária]</h1>
-
-  [conteúdo completo em HTML semântico]
+  [introdução + conteúdo completo em HTML semântico, iniciando em H2/H3]
 
   <section class="sowads-cta">
     <p>[CTA adaptado ao porte — texto em <strong> no call to action]</p>
@@ -317,7 +316,12 @@ Slug: [kebab-case-sem-acento-sem-stop-words]
 
   <section class="faq-section" itemscope itemtype="https://schema.org/FAQPage">
     <h2>Perguntas Frequentes</h2>
-    [FAQ com itemprop correto]
+    <div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+      <h3 itemprop="name">[Pergunta]</h3>
+      <div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+        <p itemprop="text">[Resposta]</p>
+      </div>
+    </div>
   </section>
 
   <script type="application/ld+json">[Article Schema JSON-LD]</script>
@@ -337,7 +341,7 @@ Slug: [kebab-case-sem-acento-sem-stop-words]
 ## CHECKLIST — VERIFICAR ANTES DE ENTREGAR
 
 **Crítico:**
-- [ ] Keyword primária: H1, primeiro parágrafo, 2+ H2s, conclusão?
+- [ ] Keyword primária: título do post (H1 do WP), primeiro parágrafo, 2+ H2s, conclusão?
 - [ ] Todo termo técnico explicado com valor na primeira menção?
 - [ ] Nenhum dado inventado ou sem fonte verificável?
 - [ ] Ano de referência é 2026 em todos os contextos temporais?
@@ -362,6 +366,7 @@ Slug: [kebab-case-sem-acento-sem-stop-words]
 - [ ] Meta Title ≤ 60 caracteres?
 - [ ] Meta Description ≤ 155 caracteres?
 - [ ] Slug em kebab-case sem acento?
-- [ ] Pelo menos 1 lista + 1 tabela no corpo do artigo?
+- [ ] Sem `<h1>` dentro do HTML package?
+- [ ] O artigo usa de forma natural 2 a 3 recursos visuais (sem excesso e sem rigidez de template)?
 - [ ] Sem repetição de cauda/frases duplicadas no encerramento?
 - [ ] Sem artefatos de geração no final do HTML?

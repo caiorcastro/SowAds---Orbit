@@ -83,16 +83,29 @@ CRITICAL_REASON_CODES = {
     "missing_blocks",
     "meta_title_too_long",
     "meta_description_too_long",
+    "meta_description_missing",
     "external_link",
     "invalid_slug",
-    "missing_h1",
+    "body_h1_present",
     "faq_missing",
+    "faq_answers_missing",
+    "faq_html_semantic_missing",
     "article_schema_missing",
+    "article_schema_incomplete",
     "temporal_incoherence",
     "malformed_tail",
     "repetitive_tail",
     "low_visual_structure",
+    "visual_overload",
     "late_visual_structure",
+    "word_count_high",
+    "long_paragraphs",
+    "geo_block_weak",
+    "cta_missing",
+    "sources_missing",
+    "bold_overuse",
+    "fixed_blocks_detected",
+    "repeated_structure_pattern",
 }
 
 
@@ -478,9 +491,10 @@ class Pipeline:
         self.test_mode = bool(cfg.get("test_mode", True))
         self.max_rewrites = int(cfg.get("max_rewrites", 2))
         self.threshold = 80
-        self.min_article_words = int(cfg.get("min_article_words", 1200))
-        self.keyword_density_min = float(cfg.get("keyword_density_min_pct", 0.8))
-        self.keyword_density_max = float(cfg.get("keyword_density_max_pct", 2.5))
+        self.min_article_words = int(cfg.get("min_article_words", 900))
+        self.max_article_words = int(cfg.get("max_article_words", 1500))
+        self.keyword_density_min = float(cfg.get("keyword_density_min_pct", 1.5))
+        self.keyword_density_max = float(cfg.get("keyword_density_max_pct", 2.0))
 
         api_key = os.getenv("GEMINI_API_KEY", "").strip()
         api_base = os.getenv("GEMINI_API_BASE", "https://generativelanguage.googleapis.com/v1beta").strip()
@@ -791,10 +805,10 @@ Regras:
             f"{theme.get('modelo_negocio_alvo','B2B')} para {theme.get('porte_empresa_alvo','Média Empresa')}."
         )
 
-        h1 = f"{title}: {keyword}"
+        headline = f"{title}: {keyword}"
         meta_title = slugify(f"{title} {keyword}").replace("-", " ")[:60].strip()
         if not meta_title:
-            meta_title = (h1[:60]).strip()
+            meta_title = (headline[:60]).strip()
         meta_desc = (
             f"{keyword} com foco em {sec_a}, {sec_b} e revisão humana. Guia prático para 2026."
         )[:155]
@@ -863,18 +877,21 @@ Meta Description: {meta_desc}
 
 === HTML PACKAGE — WORDPRESS READY ===
 <article>
-  <h1>{h1}</h1>
+  <p><strong>{headline}</strong>. Este conteúdo segue o padrão Sowads: sem H1 no corpo e com foco em leitura escaneável.</p>
 {body}
   <p>Em resumo, {keyword} só entrega consistência quando escala e qualidade caminham juntas, com IA e revisão humana.</p>
-  <section class=\"faq-section\">
-    <h2>Perguntas frequentes</h2>
-    <h3>{faq_q1}</h3><p>{faq_a1}</p>
-    <h3>{faq_q2}</h3><p>{faq_a2}</p>
-    <h3>{faq_q3}</h3><p>{faq_a3}</p>
-    <h3>{faq_q4}</h3><p>{faq_a4}</p>
-    <h3>{faq_q5}</h3><p>{faq_a5}</p>
+  <section class=\"sowads-cta\">
+    <p><strong>Fale com a Sowads</strong> para estruturar uma operação previsível de conteúdo e mídia, com governança e revisão humana.</p>
   </section>
-  <script type=\"application/ld+json\">{{"@context":"https://schema.org","@type":"Article","headline":"{h1}","author":{{"@type":"Organization","name":"Sowads"}},"publisher":{{"@type":"Organization","name":"Sowads"}}}}</script>
+  <section class=\"faq-section\" itemscope itemtype=\"https://schema.org/FAQPage\">
+    <h2>Perguntas frequentes</h2>
+    <div itemscope itemprop=\"mainEntity\" itemtype=\"https://schema.org/Question\"><h3 itemprop=\"name\">{faq_q1}</h3><div itemscope itemprop=\"acceptedAnswer\" itemtype=\"https://schema.org/Answer\"><p itemprop=\"text\">{faq_a1}</p></div></div>
+    <div itemscope itemprop=\"mainEntity\" itemtype=\"https://schema.org/Question\"><h3 itemprop=\"name\">{faq_q2}</h3><div itemscope itemprop=\"acceptedAnswer\" itemtype=\"https://schema.org/Answer\"><p itemprop=\"text\">{faq_a2}</p></div></div>
+    <div itemscope itemprop=\"mainEntity\" itemtype=\"https://schema.org/Question\"><h3 itemprop=\"name\">{faq_q3}</h3><div itemscope itemprop=\"acceptedAnswer\" itemtype=\"https://schema.org/Answer\"><p itemprop=\"text\">{faq_a3}</p></div></div>
+    <div itemscope itemprop=\"mainEntity\" itemtype=\"https://schema.org/Question\"><h3 itemprop=\"name\">{faq_q4}</h3><div itemscope itemprop=\"acceptedAnswer\" itemtype=\"https://schema.org/Answer\"><p itemprop=\"text\">{faq_a4}</p></div></div>
+    <div itemscope itemprop=\"mainEntity\" itemtype=\"https://schema.org/Question\"><h3 itemprop=\"name\">{faq_q5}</h3><div itemscope itemprop=\"acceptedAnswer\" itemtype=\"https://schema.org/Answer\"><p itemprop=\"text\">{faq_a5}</p></div></div>
+  </section>
+  <script type=\"application/ld+json\">{{"@context":"https://schema.org","@type":"Article","headline":"{headline}","description":"{meta_desc}","author":{{"@type":"Organization","name":"Sowads"}},"publisher":{{"@type":"Organization","name":"Sowads"}},"datePublished":"2026-01-01T00:00:00Z","dateModified":"2026-01-01T00:00:00Z","mainEntityOfPage":{{"@type":"WebPage","@id":"https://resultsquad.com.br/"}}}}</script>
   <script type=\"application/ld+json\">{{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{{"@type":"Question","name":"{faq_q1}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a1}"}}}},{{"@type":"Question","name":"{faq_q2}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a2}"}}}},{{"@type":"Question","name":"{faq_q3}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a3}"}}}},{{"@type":"Question","name":"{faq_q4}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a4}"}}}},{{"@type":"Question","name":"{faq_q5}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a5}"}}}}]}}</script>
 </article>
 """
@@ -921,6 +938,29 @@ Meta Description: {meta_desc}
         prompt = (
             "[SYSTEM - OBEDECER INTEGRALMENTE]\n"
             + self.system_md
+            + "\n\n[CONSTRAINTS OPERACIONAIS DO LOTE]\n"
+            + f"- Word count obrigatório entre {self.min_article_words} e {self.max_article_words}.\n"
+            + "- Não inserir <h1> dentro do HTML package; o H1 é o título nativo do WordPress.\n"
+            + "- O conteúdo no HTML package deve iniciar com introdução e depois H2/H3 (sem H1 no corpo).\n"
+            + "- Estrutura é princípio, não molde fixo: adaptar seções ao tema sem copiar blocos/títulos padronizados.\n"
+            + "- Não repetir blocos fixos, nomes padronizados ou ordem idêntica de seções entre temas diferentes.\n"
+            + "- Usar 2 a 3 recursos visuais por artigo, escolhidos conforme o assunto: lista numerada, bullets, mini-checklist, tabela, blockquote, frases-âncora em negrito.\n"
+            + "- Não usar todos os recursos no mesmo artigo; escolha apenas os que aumentam clareza do tema.\n"
+            + "- O primeiro recurso visual estrutural (lista/tabela/blockquote/checklist) deve entrar após o 2º, 3º ou 4º parágrafo.\n"
+            + "- Evitar bloco visual de apêndice no fim do artigo.\n"
+            + "- Tabela com células curtas e objetivas (sem reticências, sem texto truncado, sem '...').\n"
+            + "- Parágrafos curtos: preferir 2 a 4 frases por parágrafo e evitar blocos longos.\n"
+            + "- Fluidez, clareza, elegância executiva e densidade sem prolixidade são prioritárias.\n"
+            + "- Incluir seção CTA obrigatória: <section class=\"sowads-cta\">...</section>.\n"
+            + "- FAQ obrigatória com 5 a 8 perguntas e respostas completas (2 a 4 frases cada resposta).\n"
+            + "- FAQ HTML deve usar itemprop (Question/Answer) e também JSON-LD FAQPage coerente.\n"
+            + "- Article JSON-LD obrigatório e completo (headline, description, author, publisher, datePublished, dateModified, mainEntityOfPage).\n"
+            + "- Incluir 1 a 3 referências verificáveis citadas em texto simples com fonte + ano (sem hyperlink externo).\n"
+            + "- Cada H2 deve começar com um parágrafo-resumo autossuficiente (40-60 palavras) para GEO.\n"
+            + "- Incluir mini diagnóstico executivo no formato: sintoma -> causa -> impacto.\n"
+            + "- Incluir pelo menos 1 cenário operacional com escala numérica realista (ex.: unidades, páginas, budget, catálogo).\n"
+            + "- Incluir seção de erros críticos a evitar com 4-6 bullet points específicos.\n"
+            + "- Aplicar negrito com inteligência: termos técnicos na primeira menção, frases de decisão estratégica e regras operacionais; evitar excesso de negrito.\n"
             + "\n\n[FORMATO OBRIGATORIO DE SAIDA]\n"
             + "Retorne EXATAMENTE neste formato:\n"
             + "=== META INFORMATION ===\n"
@@ -935,7 +975,7 @@ Meta Description: {meta_desc}
         try:
             raw = self.gemini.generate_text(
                 prompt,
-                temperature=0.35 if self.test_mode else 0.5,
+                temperature=0.3 if self.test_mode else 0.35,
                 context={
                     "phase": "articles",
                     "agent": "agent_02_article_generator",
@@ -978,12 +1018,10 @@ Meta Description: {meta_desc}
     def _keyword_hits(self, html: str, kw: str) -> Dict[str, bool]:
         text = strip_html(html).lower()
         kwl = kw.lower()
-        h1s = re.findall(r"<h1[^>]*>(.*?)</h1>", html, flags=re.I | re.S)
         h2s = re.findall(r"<h2[^>]*>(.*?)</h2>", html, flags=re.I | re.S)
         first_par = re.findall(r"<p[^>]*>(.*?)</p>", html, flags=re.I | re.S)
         conc = " ".join(first_par[-2:]).lower() if first_par else ""
         return {
-            "in_h1": any(kwl in strip_html(x).lower() for x in h1s),
             "in_first_par": kwl in strip_html(first_par[0]).lower() if first_par else False,
             "in_h2_count_2": sum(kwl in strip_html(x).lower() for x in h2s) >= 2,
             "in_conclusion": kwl in conc,
@@ -1058,6 +1096,23 @@ Meta Description: {meta_desc}
 
     def agent03_audit(self, articles: Dict[str, dict]) -> dict:
         items = []
+        signature_by_item: Dict[str, str] = {}
+        signature_counts: Counter = Counter()
+
+        # Detect repeated structural fingerprints inside the same run.
+        for aid, article in articles.items():
+            _, html_tmp = self._parse_package(article.get("content_package", ""))
+            h2_tmp = re.findall(r"<h2[^>]*>(.*?)</h2>", html_tmp, flags=re.I | re.S)
+            h2_norm = [
+                self._normalize_text(strip_html(h)).strip()
+                for h in h2_tmp
+                if self._normalize_text(strip_html(h)).strip()
+            ]
+            signature = "|".join(h2_norm[:6])
+            if signature and len(h2_norm) >= 3:
+                signature_by_item[aid] = signature
+                signature_counts[signature] += 1
+
         for item_id, a in articles.items():
             reason_codes = []
             issues = []
@@ -1078,20 +1133,48 @@ Meta Description: {meta_desc}
             table_count = len(re.findall(r"<table[\s>]", html, flags=re.I))
             ul_count = len(re.findall(r"<ul[\s>]", html, flags=re.I))
             ol_count = len(re.findall(r"<ol[\s>]", html, flags=re.I))
+            blockquote_count = len(re.findall(r"<blockquote[\s>]", html, flags=re.I))
             list_count = ul_count + ol_count
             html_len = max(1, len(html))
             table_pos = html.lower().find("<table")
             ul_pos = html.lower().find("<ul")
             ol_pos = html.lower().find("<ol")
+            blockquote_pos = html.lower().find("<blockquote")
             list_positions = [p for p in (ul_pos, ol_pos) if p >= 0]
             first_list_pos = min(list_positions) if list_positions else -1
             faq_pos = html.lower().find("faq-section")
+            checklist_match = re.search(r"<h[2-4][^>]*>\s*[^<]{0,60}checklist[^<]{0,60}</h[2-4]>", html, flags=re.I)
+            checklist_pos = checklist_match.start() if checklist_match else -1
+            checklist_li_count = len(re.findall(r"<li[^>]*>\s*(?:✅|☑️|✔️|□|\[[ xX]\])", html, flags=re.I))
+
+            strong_snippets = re.findall(r"<strong[^>]*>([\s\S]*?)</strong>", html, flags=re.I)
+            strong_count = len(strong_snippets)
+            strong_words = sum(self._count_words(strip_html(x)) for x in strong_snippets)
+            bold_anchor_count = 0
+            for snippet in strong_snippets:
+                w = self._count_words(strip_html(snippet))
+                if 2 <= w <= 12:
+                    bold_anchor_count += 1
+
+            visual_devices = {
+                "numbered_list": ol_count > 0,
+                "bullets": ul_count > 0,
+                "mini_checklist": bool(checklist_match) or checklist_li_count >= 2,
+                "table": table_count > 0,
+                "blockquote": blockquote_count > 0,
+                "bold_anchor": bold_anchor_count >= 2,
+            }
+            visual_device_count = sum(1 for used in visual_devices.values() if used)
 
             if len(a.get("meta_title", "")) > 60:
                 reason_codes.append("meta_title_too_long")
                 issues.append("Meta Title > 60.")
                 score -= 8
 
+            if not a.get("meta_description", "").strip():
+                reason_codes.append("meta_description_missing")
+                issues.append("Meta Description ausente.")
+                score -= 10
             if len(a.get("meta_description", "")) > 155:
                 reason_codes.append("meta_description_too_long")
                 issues.append("Meta Description > 155.")
@@ -1102,6 +1185,12 @@ Meta Description: {meta_desc}
                 issues.append("Slug inválido.")
                 score -= 12
 
+            if a.get("tema_principal", "").strip() and a.get("meta_title", "").strip():
+                title_sim = self._token_jaccard(a.get("tema_principal", ""), a.get("meta_title", ""))
+                if title_sim >= 0.9:
+                    issues.append("Título do post e Meta Title muito parecidos; variar promessa para evitar duplicação.")
+                    score -= 8
+
             if re.search(r"<a[^>]+href=[\"'](?:https?://|www\.)", html, flags=re.I):
                 reason_codes.append("external_link")
                 issues.append("Link externo detectado.")
@@ -1110,6 +1199,10 @@ Meta Description: {meta_desc}
             if word_count < self.min_article_words:
                 reason_codes.append("word_count_low")
                 issues.append(f"Word count abaixo do mínimo: {word_count} < {self.min_article_words}.")
+                score -= 18
+            elif word_count > self.max_article_words:
+                reason_codes.append("word_count_high")
+                issues.append(f"Word count acima do máximo: {word_count} > {self.max_article_words}.")
                 score -= 18
 
             if kw_density < self.keyword_density_min:
@@ -1126,45 +1219,136 @@ Meta Description: {meta_desc}
                 score -= 12
 
             h1_count = len(re.findall(r"<h1[\s>].*?</h1>", html, flags=re.I | re.S))
-            if h1_count != 1:
-                reason_codes.append("missing_h1")
-                issues.append("H1 único não atendido.")
+            if h1_count > 0:
+                reason_codes.append("body_h1_present")
+                issues.append("H1 no corpo do artigo detectado; manter H1 apenas no título nativo do WordPress.")
                 score -= 12
 
-            h1_text = ""
-            h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", html, flags=re.I | re.S)
-            if h1_match:
-                h1_text = strip_html(h1_match.group(1))
-            if h1_text and a.get("meta_title", "").strip():
-                title_sim = self._token_jaccard(h1_text, a.get("meta_title", ""))
-                if title_sim >= 0.9:
-                    reason_codes.append("h1_meta_too_similar")
-                    issues.append("H1 e Meta Title excessivamente parecidos; variar promessa/ângulo do título.")
-                    score -= 8
-
-            if not (list_count >= 2 or (list_count >= 1 and table_count >= 1)):
+            if visual_device_count < 2:
                 reason_codes.append("low_visual_structure")
-                issues.append("Estrutura visual pobre: incluir lista(s) e tabela para facilitar leitura.")
+                issues.append(
+                    "Estrutura visual pobre: usar 2-3 recursos entre lista numerada, bullets, mini-checklist, tabela, blockquote e frases-âncora em negrito."
+                )
                 score -= 10
-            else:
-                earliest_visual = min([p for p in (table_pos, first_list_pos) if p >= 0], default=-1)
-                late_by_position = earliest_visual >= 0 and (earliest_visual / html_len) > 0.55
+            elif visual_device_count > 3:
+                reason_codes.append("visual_overload")
+                issues.append("Excesso de elementos visuais: limitar para 2-3 recursos por artigo.")
+                score -= 8
+
+            structural_positions = [p for p in (table_pos, first_list_pos, blockquote_pos, checklist_pos) if p >= 0]
+            if structural_positions:
+                earliest_visual = min(structural_positions)
+                p_positions = [m.start() for m in re.finditer(r"<p[\s>]", html, flags=re.I)]
+                p2_pos = p_positions[1] if len(p_positions) >= 2 else -1
+                p4_pos = p_positions[3] if len(p_positions) >= 4 else -1
+                late_by_position = earliest_visual >= 0 and (earliest_visual / html_len) > 0.5
+                late_by_paragraph = p4_pos >= 0 and earliest_visual > p4_pos
                 late_after_faq = faq_pos >= 0 and earliest_visual >= faq_pos
-                if late_by_position or late_after_faq:
+                if late_by_position or late_by_paragraph or late_after_faq:
                     reason_codes.append("late_visual_structure")
-                    issues.append("Tabela/listas inseridas tarde no artigo; trazer elementos visuais para o início.")
+                    issues.append(
+                        "Elemento visual estrutural inserido tarde; posicionar após o 2º, 3º ou 4º parágrafo e antes da metade do artigo."
+                    )
                     score -= 12
+                elif p2_pos >= 0 and earliest_visual >= 0 and earliest_visual < p2_pos:
+                    issues.append("Elemento visual estrutural muito cedo; reposicionar após o 2º parágrafo para fluidez.")
+                    score -= 3
+
+            if table_count > 0:
+                table_block = ""
+                table_match = re.search(r"<table[\s\S]*?</table>", html, flags=re.I)
+                if table_match:
+                    table_block = table_match.group(0)
+                has_grid_style = bool(re.search(r"#d1d5db|#b7b7b7|border", table_block, flags=re.I))
+                if not has_grid_style:
+                    issues.append("Tabela sem estilo de grade legível (linhas/bordas cinza visíveis).")
+                    score -= 4
+
+            # Paragraph readability guardrail (avoid giant walls of text).
+            long_paragraphs = 0
+            for p in re.findall(r"<p[^>]*>([\s\S]*?)</p>", html, flags=re.I):
+                ptxt = strip_html(p)
+                # Skip script payloads accidentally captured in malformed content.
+                if not ptxt or "@context" in ptxt or "@type" in ptxt:
+                    continue
+                if self._count_words(ptxt) > 85:
+                    long_paragraphs += 1
+            if long_paragraphs > 0:
+                reason_codes.append("long_paragraphs")
+                issues.append(f"Parágrafos longos detectados ({long_paragraphs}); quebrar em blocos menores.")
+                score -= min(12, long_paragraphs * 3)
+
+            if word_count > 0:
+                bold_ratio = strong_words / word_count
+            else:
+                bold_ratio = 0.0
+            if strong_count > max(14, word_count // 75) or bold_ratio > 0.09:
+                reason_codes.append("bold_overuse")
+                issues.append("Excesso de negrito no corpo; destacar apenas termos técnicos, decisões estratégicas e regras operacionais.")
+                score -= 8
 
             faq_ok = ("faq" in html.lower() and "FAQPage" in html)
             if not faq_ok:
                 reason_codes.append("faq_missing")
                 issues.append("FAQ HTML/JSON-LD ausente.")
                 score -= 10
+            else:
+                faq_semantic_ok = bool(
+                    re.search(r"<section[^>]*faq-section[^>]*itemscope[^>]*FAQPage", html, flags=re.I)
+                    and re.search(r"itemprop=[\"']mainEntity[\"']", html, flags=re.I)
+                    and re.search(r"itemprop=[\"']acceptedAnswer[\"']", html, flags=re.I)
+                )
+                if not faq_semantic_ok:
+                    reason_codes.append("faq_html_semantic_missing")
+                    issues.append("FAQ HTML sem marcação semântica completa (FAQPage/Question/Answer).")
+                    score -= 10
+
+                faq_pairs = len(
+                    re.findall(
+                        r"<h3[^>]*>[\s\S]*?</h3>\s*<p[^>]*>[\s\S]*?</p>",
+                        html,
+                        flags=re.I,
+                    )
+                ) + len(re.findall(r"itemprop=[\"']acceptedAnswer[\"']", html, flags=re.I))
+                if faq_pairs < 5:
+                    reason_codes.append("faq_answers_missing")
+                    issues.append("FAQ com perguntas sem respostas suficientes (mínimo 5 pares Q/A).")
+                    score -= 12
 
             if "\"@type\":\"Article\"" not in html and '"@type": "Article"' not in html:
                 reason_codes.append("article_schema_missing")
                 issues.append("Article JSON-LD ausente.")
                 score -= 10
+            else:
+                article_jsonld_ok = all(
+                    token in html
+                    for token in (
+                        '"@type":"Article"',
+                        "headline",
+                        "description",
+                        "datePublished",
+                        "dateModified",
+                        "author",
+                        "publisher",
+                        "mainEntityOfPage",
+                    )
+                ) or all(
+                    token in html
+                    for token in (
+                        '"@type": "Article"',
+                        "headline",
+                        "description",
+                        "datePublished",
+                        "dateModified",
+                        "author",
+                        "publisher",
+                        "mainEntityOfPage",
+                    )
+                )
+                if not article_jsonld_ok:
+                    reason_codes.append("article_schema_incomplete")
+                    issues.append("Article JSON-LD incompleto (faltam campos mandatórios).")
+                    score -= 10
 
             has_steps = bool(re.search(r"<ol[\s>]|passo a passo|\bpasso\b", html, flags=re.I))
             has_howto = "HowTo" in html
@@ -1173,13 +1357,65 @@ Meta Description: {meta_desc}
                 issues.append("HowTo schema sem passos reais.")
                 score -= 8
 
+            if not re.search(r"<section[^>]*class=[\"'][^\"']*sowads-cta[^\"']*[\"']", html, flags=re.I):
+                reason_codes.append("cta_missing")
+                issues.append("Seção CTA obrigatória ausente (<section class=\"sowads-cta\">).")
+                score -= 8
+
+            # GEO: H2 block must open with a self-sufficient summary paragraph.
+            weak_h2_blocks = 0
+            h2_iter = list(re.finditer(r"<h2[^>]*>[\s\S]*?</h2>", html, flags=re.I))
+            for idx, m in enumerate(h2_iter):
+                h2_label = strip_html(m.group(0)).lower()
+                if "perguntas frequentes" in h2_label:
+                    continue
+                start = m.end()
+                end = h2_iter[idx + 1].start() if idx + 1 < len(h2_iter) else len(html)
+                section_chunk = html[start:end]
+                first_p = re.search(r"<p[^>]*>([\s\S]*?)</p>", section_chunk, flags=re.I)
+                if not first_p:
+                    weak_h2_blocks += 1
+                    continue
+                p_words = self._count_words(strip_html(first_p.group(1)))
+                if p_words < 35 or p_words > 80:
+                    weak_h2_blocks += 1
+            if weak_h2_blocks > 0:
+                reason_codes.append("geo_block_weak")
+                issues.append(
+                    f"{weak_h2_blocks} blocos H2 sem resumo autossuficiente (35-80 palavras no 1º parágrafo)."
+                )
+                score -= min(12, weak_h2_blocks * 2)
+
+            source_pattern = re.compile(
+                r"(google search central|google|ahrefs|semrush|bain|gartner|statista|search console|search engine journal)[^\\n\\r]{0,45}(2024|2025|2026)",
+                flags=re.I,
+            )
+            source_pattern_rev = re.compile(
+                r"(2024|2025|2026)[^\\n\\r]{0,45}(google search central|google|ahrefs|semrush|bain|gartner|statista|search console|search engine journal)",
+                flags=re.I,
+            )
+            if not (source_pattern.search(html) or source_pattern_rev.search(html)):
+                reason_codes.append("sources_missing")
+                issues.append("Faltam referências verificáveis no texto (fonte + ano).")
+                score -= 8
+
+            experience_pattern = re.compile(
+                r"(\d{2,4}\s*(paginas|página|unidades|providers|jogos)|r\\$\\s*\\d|budget\\s*mensal|catalogo\\s*com\\s*\\d)",
+                flags=re.I,
+            )
+            if not experience_pattern.search(strip_html(html)):
+                issues.append("Adicionar contexto operacional real (Experience) com escala numérica do cenário.")
+                score -= 4
+
             opening_text = strip_html(html[:600]).lower()
             if any(g in opening_text for g in GENERIC_OPENINGS):
                 reason_codes.append("generic_opening")
                 issues.append("Abertura genérica proibida.")
                 score -= 10
 
-            if re.search(r"\b2024\b|\b2025\b", html):
+            temporal_text = strip_html(html).lower()
+            # Allow source-year citations (e.g., "Bain, 2025"), but block contextual present-time framing in 2024/2025.
+            if re.search(r"\b(hoje|atualmente|neste ano|em)\s+20(24|25)\b", temporal_text):
                 reason_codes.append("temporal_incoherence")
                 issues.append("Ano incoerente com referência 2026.")
                 score -= 12
@@ -1194,6 +1430,24 @@ Meta Description: {meta_desc}
                 issues.append("Trecho final com repetição excessiva de frases/padrões.")
                 score -= 18
 
+            normalized_plain = self._normalize_text(plain_text)
+            fixed_block_markers = [
+                "painel tatico",
+                "resumo executivo em bullet points",
+                "checklist de execucao 30 dias",
+                "frente objetivo pratico indicador principal ritmo de revisao",
+            ]
+            if any(marker in normalized_plain for marker in fixed_block_markers):
+                reason_codes.append("fixed_blocks_detected")
+                issues.append("Bloco fixo/padronizado detectado; remover template rígido e adaptar a estrutura ao tema.")
+                score -= 14
+
+            sig = signature_by_item.get(item_id, "")
+            if sig and signature_counts.get(sig, 0) > 1:
+                reason_codes.append("repeated_structure_pattern")
+                issues.append("Padrão estrutural de H2 repetido neste lote; variar a arquitetura do artigo para o tema.")
+                score -= 12
+
             # heuristic for numbers/percent without Fonte/ano nearby
             for m in re.finditer(r"\b\d{1,3}%\b", html):
                 window = html[max(0, m.start() - 120): m.end() + 120].lower()
@@ -1204,9 +1458,6 @@ Meta Description: {meta_desc}
                     break
 
             hits = self._keyword_hits(html, a["keyword_primaria"])
-            if not hits["in_h1"]:
-                score -= 7
-                issues.append("Keyword primária fora do H1.")
             if not hits["in_first_par"]:
                 score -= 6
                 issues.append("Keyword primária fora do 1o parágrafo.")
@@ -1241,13 +1492,23 @@ Meta Description: {meta_desc}
                         "word_count": word_count,
                         "keyword_density_pct": round(kw_density, 4),
                         "min_article_words": self.min_article_words,
+                        "max_article_words": self.max_article_words,
                         "keyword_density_min_pct": self.keyword_density_min,
                         "keyword_density_max_pct": self.keyword_density_max,
                         "table_count": table_count,
                         "ul_count": ul_count,
                         "ol_count": ol_count,
+                        "blockquote_count": blockquote_count,
+                        "checklist_li_count": checklist_li_count,
+                        "bold_anchor_count": bold_anchor_count,
+                        "strong_count": strong_count,
+                        "strong_ratio_pct": round(bold_ratio * 100.0, 2),
+                        "visual_device_count": visual_device_count,
+                        "visual_devices": [k for k, v in visual_devices.items() if v],
+                        "structure_signature_repeats": int(signature_counts.get(signature_by_item.get(item_id, ""), 0)),
                         "table_first_pos_pct": round((table_pos / html_len) * 100.0, 2) if table_pos >= 0 else None,
                         "list_first_pos_pct": round((first_list_pos / html_len) * 100.0, 2) if first_list_pos >= 0 else None,
+                        "long_paragraphs": long_paragraphs,
                     },
                     "flags": {
                         "flag_rewrite": flag,

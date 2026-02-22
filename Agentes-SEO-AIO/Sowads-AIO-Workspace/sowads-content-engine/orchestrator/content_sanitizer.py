@@ -75,11 +75,94 @@ def _dedupe_repeated_trailing_paragraphs(html: str, min_chars: int = 40) -> str:
     return html.strip()
 
 
+def _unwrap_script_paragraphs(html: str) -> str:
+    # Avoid invalid HTML like <p><script ...></script></p>
+    return re.sub(
+        r"<p[^>]*>\s*(<script[^>]*>[\s\S]*?</script>)\s*</p>",
+        r"\1",
+        html,
+        flags=re.I,
+    )
+
+
+def _demote_body_h1_to_h2(html: str) -> str:
+    def _open_tag_repl(match: re.Match) -> str:
+        attrs = match.group(1) or ""
+        # headline should be represented in structured data, not in duplicated body H1.
+        attrs = re.sub(r"\s*itemprop\s*=\s*['\"]headline['\"]", "", attrs, flags=re.I)
+        return f"<h2{attrs}>"
+
+    html = re.sub(r"<h1([^>]*)>", _open_tag_repl, html, flags=re.I)
+    html = re.sub(r"</h1>", "</h2>", html, flags=re.I)
+    return html
+
+
+def _ensure_faq_semantic_markup(html: str) -> str:
+    section_re = re.compile(
+        r"(<section[^>]*class=[\"'][^\"']*faq-section[^\"']*[\"'][^>]*>)([\s\S]*?)(</section>)",
+        flags=re.I,
+    )
+
+    def _section_repl(match: re.Match) -> str:
+        opening = match.group(1)
+        body = match.group(2)
+        closing = match.group(3)
+
+        if "itemscope" not in opening.lower():
+            opening = opening[:-1] + ' itemscope itemtype="https://schema.org/FAQPage">'
+        elif "faqpage" not in opening.lower():
+            opening = re.sub(
+                r"itemtype\s*=\s*['\"][^'\"]*['\"]",
+                'itemtype="https://schema.org/FAQPage"',
+                opening,
+                flags=re.I,
+            )
+
+        if 'itemprop="mainEntity"' in body or "itemprop='mainEntity'" in body:
+            return opening + body + closing
+
+        qa_re = re.compile(
+            r"<h3([^>]*)>([\s\S]*?)</h3>\s*<p([^>]*)>([\s\S]*?)</p>",
+            flags=re.I,
+        )
+
+        def _qa_repl(qa: re.Match) -> str:
+            q_attrs = qa.group(1) or ""
+            q_html = qa.group(2).strip()
+            a_attrs = qa.group(3) or ""
+            a_html = qa.group(4).strip()
+            return (
+                '<div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">'
+                f'<h3{q_attrs} itemprop="name">{q_html}</h3>'
+                '<div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">'
+                f'<p{a_attrs} itemprop="text">{a_html}</p>'
+                "</div>"
+                "</div>"
+            )
+
+        body = qa_re.sub(_qa_repl, body)
+        return opening + body + closing
+
+    return section_re.sub(_section_repl, html)
+
+
 def sanitize_article_html(html: str) -> str:
     html = _normalize_newlines(html)
     html = _remove_trailing_noise(html)
+    # Legacy cleanup: remove deprecated generic readability pack block if present.
+    html = re.sub(
+        r"<section[^>]*id=[\"']sowads-readability-pack[\"'][^>]*>[\s\S]*?</section>",
+        "",
+        html,
+        flags=re.I,
+    )
+    html = html.replace("**", "")
+    html = _unwrap_script_paragraphs(html)
     html = _clip_to_article(html)
+    html = _demote_body_h1_to_h2(html)
+    html = _ensure_faq_semantic_markup(html)
     html = _remove_trailing_noise(html)
+    html = _unwrap_script_paragraphs(html)
     html = _dedupe_repeated_trailing_paragraphs(html)
     return html.strip()
 
@@ -103,4 +186,3 @@ def build_content_package(meta: str, html: str, with_markers: bool = True) -> st
     if with_markers:
         return f"{META_MARKER}\n{meta}\n\n{HTML_MARKER}\n{html}".strip()
     return html.strip()
-

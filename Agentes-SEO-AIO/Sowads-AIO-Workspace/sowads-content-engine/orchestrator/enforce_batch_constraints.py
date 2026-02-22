@@ -75,6 +75,40 @@ def inject_before_article_end(html: str, block: str) -> str:
     return html[:idx].rstrip() + "\n" + block.strip() + "\n" + html[idx:]
 
 
+def trim_to_max_words(html: str, max_words: int) -> str:
+    if max_words <= 0:
+        return html
+    text = strip_html(html)
+    if count_words(text) <= max_words:
+        return html
+
+    # Prefer removing trailing plain paragraphs (outside FAQ/scripts) to reduce fatigue.
+    while count_words(strip_html(html)) > max_words:
+        candidates = list(
+            re.finditer(r"<p[^>]*>[\s\S]*?</p>", html, flags=re.I)
+        )
+        if not candidates:
+            break
+
+        removed = False
+        for m in reversed(candidates):
+            before = html[: m.start()]
+            near = before[max(0, len(before) - 350) :].lower()
+            if "<section" in near and "faq-section" in near:
+                continue
+            chunk = m.group(0).lower()
+            if "<strong>faq" in chunk or "perguntas frequentes" in chunk:
+                continue
+            html = html[: m.start()] + html[m.end() :]
+            removed = True
+            break
+
+        if not removed:
+            break
+
+    return html
+
+
 def make_keyword_sentence(keyword: str, idx: int = 0) -> str:
     templates = [
         "Na operação diária, <strong>{kw}</strong> precisa ser monitorada com ticket médio, margem e taxa de retorno para orientar decisões com previsibilidade.",
@@ -107,6 +141,7 @@ def replace_html_in_package(content_package: str, new_html: str) -> str:
 def enforce_row(
     row: dict,
     min_words: int,
+    max_words: int,
     density_min: float,
     density_max: float,
     density_target_low: float,
@@ -183,6 +218,12 @@ def enforce_row(
             wc = count_words(text)
             dens = keyword_density_pct(text, keyword)
 
+    if wc > max_words:
+        html = trim_to_max_words(html, max_words)
+        text = strip_html(html)
+        wc = count_words(text)
+        dens = keyword_density_pct(text, keyword)
+
     html = sanitize_article_html(html)
     text = strip_html(html)
     wc = count_words(text)
@@ -196,7 +237,7 @@ def enforce_row(
         "keyword_primaria": keyword,
         "word_count": wc,
         "keyword_density_pct": round(dens, 4),
-        "ok": bool(wc >= min_words and density_min <= dens <= density_max),
+        "ok": bool(min_words <= wc <= max_words and density_min <= dens <= density_max),
     }
     return new_row, metrics
 
@@ -206,7 +247,8 @@ def main() -> int:
     parser.add_argument("--input-csv", required=True)
     parser.add_argument("--output-csv", required=True)
     parser.add_argument("--report-json", required=True)
-    parser.add_argument("--min-words", type=int, default=1500)
+    parser.add_argument("--min-words", type=int, default=900)
+    parser.add_argument("--max-words", type=int, default=1500)
     parser.add_argument("--density-min", type=float, default=1.5)
     parser.add_argument("--density-max", type=float, default=2.0)
     parser.add_argument("--target-low", type=float, default=1.7)
@@ -229,6 +271,7 @@ def main() -> int:
         nr, m = enforce_row(
             row=row,
             min_words=args.min_words,
+            max_words=args.max_words,
             density_min=args.density_min,
             density_max=args.density_max,
             density_target_low=args.target_low,
@@ -248,6 +291,7 @@ def main() -> int:
         "report_generated_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
         "constraints": {
             "min_words": args.min_words,
+            "max_words": args.max_words,
             "density_min": args.density_min,
             "density_max": args.density_max,
         },

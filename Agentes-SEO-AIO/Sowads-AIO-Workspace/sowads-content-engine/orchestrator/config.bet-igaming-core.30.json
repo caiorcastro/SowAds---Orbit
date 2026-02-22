@@ -3,12 +3,13 @@
   "quantidade_temas": 30,
   "test_mode": false,
   "publish_mode": "publish",
-  "max_rewrites": 0,
-  "min_article_words": 1500,
+  "max_rewrites": 2,
+  "min_article_words": 900,
   "keyword_density_min_pct": 1.5,
   "keyword_density_max_pct": 2.0,
   "history_window": 500,
   "request_delay_seconds": 0.7,
   "system_path": "system/system.md",
-  "user_path": "system/user.md"
+  "user_path": "system/user.md",
+  "max_article_words": 1500
 }

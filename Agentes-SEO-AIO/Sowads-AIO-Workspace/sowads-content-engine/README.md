@@ -152,24 +152,38 @@ Críticos (bloqueiam publicação):
 - `missing_blocks`
 - `meta_title_too_long`
 - `meta_description_too_long`
+- `meta_description_missing`
 - `external_link`
 - `invalid_slug`
-- `missing_h1`
+- `body_h1_present`
 - `faq_missing`
+- `faq_answers_missing`
+- `faq_html_semantic_missing`
 - `article_schema_missing`
+- `article_schema_incomplete`
 - `temporal_incoherence`
 - `malformed_tail`
 - `repetitive_tail`
 - `low_visual_structure`
+- `visual_overload`
 - `late_visual_structure`
+- `long_paragraphs`
+- `geo_block_weak`
+- `cta_missing`
+- `sources_missing`
+- `bold_overuse`
+- `fixed_blocks_detected`
+- `repeated_structure_pattern`
 
 Regras atuais relevantes de conteúdo:
-- mínimo de palavras configurável (operação atual: 1500+)
+- faixa de palavras configurável (operação atual: 900–1500)
 - densidade de keyword por faixa de controle
-- H1 e Meta Title não podem ser praticamente idênticos
+- título do post (H1 WP) e Meta Title não podem ser praticamente idênticos
 - estrutura visual obrigatória
-  - tabela + lista real
-  - elementos visuais na primeira metade do artigo
+  - usar 2 a 3 recursos entre: lista numerada, bullets, mini-checklist, tabela, blockquote e frases-âncora em negrito
+  - primeiro elemento visual estrutural após o 2º, 3º ou 4º parágrafo
+  - sem blocos fixos reaproveitados entre temas
+  - tabela (quando houver) com bordas cinza e células objetivas
 
 ## 8) Logs e rastreabilidade
 
@@ -253,7 +267,7 @@ python orchestrator/publish_wp_cli.py \
 
 ## 10) Utilitários de manutenção
 
-### 10.1 Enriquecer legibilidade (tabela/listas)
+### 10.1 Enriquecer legibilidade (modo seguro)
 
 ```bash
 python orchestrator/enrich_readability_blocks.py \
@@ -263,9 +277,9 @@ python orchestrator/enrich_readability_blocks.py \
 ```
 
 Comportamento:
-- insere bloco visual em posição natural (antes do 2º H2)
-- tabela com bordas cinza e header legível
-- listas com espaçamento adequado
+- padrão atual (sem `--inject`): remove o pack legado `sowads-readability-pack` se existir
+- para inserir/reposicionar pack legado explicitamente (não recomendado):
+  `python orchestrator/enrich_readability_blocks.py ... --inject`
 
 ### 10.2 Reforçar constraints de lote
 
@@ -274,7 +288,8 @@ python orchestrator/enforce_batch_constraints.py \
   --input-csv outputs/articles/BATCH-..._articles.csv \
   --output-csv outputs/articles/BATCH-..._articles_final.csv \
   --report-json outputs/reports/BATCH-..._constraints.json \
-  --min-words 1500 \
+  --min-words 900 \
+  --max-words 1500 \
   --density-min 1.5 \
   --density-max 2.0
 ```

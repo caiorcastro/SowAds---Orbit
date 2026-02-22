@@ -9,6 +9,10 @@
   "restricoes": "Foco em clientes de consultoria; linguagem clara; evitar promessas absolutas; manter aderencia ao posicionamento Sowads",
   "url_interna": "",
   "test_mode": false,
-  "max_rewrites": 0,
-  "batch_id": "BATCH-20260221-151612"
+  "max_rewrites": 2,
+  "batch_id": "BATCH-20260221-151612",
+  "max_article_words": 1500,
+  "min_article_words": 900,
+  "keyword_density_min_pct": 1.5,
+  "keyword_density_max_pct": 2.0
 }

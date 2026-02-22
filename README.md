@@ -79,10 +79,12 @@ Scripts uteis:
 
 - Engine multiagente ativa e publicada no remoto.
 - Gates de qualidade atualizados para:
-  - estrutura visual minima (tabela + listas)
+  - estrutura visual adaptativa (2 a 3 recursos por artigo, conforme tema)
   - posicionamento natural dos blocos visuais
+  - anti-template (bloqueio de blocos fixos repetidos)
+  - controle de excesso de negrito
   - deteccao de artefatos e repeticao de cauda
-  - controle de similaridade H1 x Meta Title
+  - controle de similaridade titulo do post x Meta Title
 - Projeto de migracao mantido em pasta separada para operacao e manutencao.
 
 ## Checklist rapido antes de operar

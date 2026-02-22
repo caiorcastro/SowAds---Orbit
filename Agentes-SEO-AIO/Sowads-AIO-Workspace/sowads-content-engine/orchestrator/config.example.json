@@ -9,10 +9,11 @@
   "publish_mode": "draft",
   "restricoes": "Sem promessas de resultado sem contexto; foco BR",
   "url_interna": "",
-  "min_article_words": 1200,
-  "keyword_density_min_pct": 0.8,
-  "keyword_density_max_pct": 2.5,
+  "min_article_words": 900,
+  "keyword_density_min_pct": 1.5,
+  "keyword_density_max_pct": 2.0,
   "test_mode": true,
   "max_rewrites": 2,
-  "batch_id": ""
+  "batch_id": "",
+  "max_article_words": 1500
 }

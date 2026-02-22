@@ -27,7 +27,9 @@ Gerar artigo final WordPress-ready com qualidade editorial e conformidade técni
 - FAQ + Article schema conforme v8.0.
 - Linguagem consistente com posicionamento Sowads.
 - Estrutura visual obrigatória: mínimo 1 tabela + 1 lista real.
-- Inserção natural dos blocos visuais: primeira metade do artigo (evitar “apêndice” no final).
+- Faixa de tamanho obrigatória: 900–1500 palavras (sem prolixidade).
+- Inserção natural dos blocos visuais: primeiro elemento visual após o 2º, 3º ou 4º parágrafo.
+- Bloco visual contextual: tabela/listas devem refletir o argumento do artigo (sem conteúdo genérico/copiável entre temas).
 - Evitar duplicação de headline: H1 e Meta Title devem ser próximos em intenção, mas diferentes em construção.
 - Higiene de encerramento: sem artefatos (` ``` ` / `====`) e sem repetição de cauda.
 

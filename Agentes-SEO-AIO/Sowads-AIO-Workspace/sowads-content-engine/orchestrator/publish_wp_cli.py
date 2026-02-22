@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from content_sanitizer import split_content_package
+from content_sanitizer import sanitize_article_html, split_content_package
 
 
 def now_iso() -> str:
@@ -48,6 +48,158 @@ def extract_html_from_package(content_package: str) -> str:
         return ""
     _, html, _ = split_content_package(content_package)
     return html
+
+
+def strip_html(text: str) -> str:
+    text = re.sub(r"<script[^>]*>[\s\S]*?</script>", " ", text, flags=re.I)
+    text = re.sub(r"<style[^>]*>[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _unwrap_script_paragraphs(html: str) -> str:
+    return re.sub(
+        r"<p[^>]*>\s*(<script[^>]*>[\s\S]*?</script>)\s*</p>",
+        r"\1",
+        html,
+        flags=re.I,
+    )
+
+
+def _remove_jsonld_by_type(html: str, schema_type: str) -> str:
+    script_re = re.compile(r"<script[^>]*type=[\"']application/ld\+json[\"'][^>]*>([\s\S]*?)</script>", flags=re.I)
+
+    def repl(m: re.Match) -> str:
+        body = m.group(1)
+        if f'"@type":"{schema_type}"' in body or f'"@type": "{schema_type}"' in body:
+            return ""
+        return m.group(0)
+
+    return script_re.sub(repl, html)
+
+
+def _ensure_faq_semantic(html: str) -> str:
+    section_re = re.compile(
+        r"(<section[^>]*class=[\"'][^\"']*faq-section[^\"']*[\"'][^>]*>)([\s\S]*?)(</section>)",
+        flags=re.I,
+    )
+
+    def section_repl(m: re.Match) -> str:
+        opening = m.group(1)
+        body = m.group(2)
+        closing = m.group(3)
+        if "itemscope" not in opening.lower():
+            opening = opening[:-1] + ' itemscope itemtype="https://schema.org/FAQPage">'
+        elif "faqpage" not in opening.lower():
+            opening = re.sub(
+                r"itemtype\s*=\s*['\"][^'\"]*['\"]",
+                'itemtype="https://schema.org/FAQPage"',
+                opening,
+                flags=re.I,
+            )
+        if 'itemprop="mainEntity"' in body or "itemprop='mainEntity'" in body:
+            return opening + body + closing
+        pair_re = re.compile(r"<h3([^>]*)>([\s\S]*?)</h3>\s*<p([^>]*)>([\s\S]*?)</p>", flags=re.I)
+
+        def pair_repl(q: re.Match) -> str:
+            h3_attrs = q.group(1) or ""
+            q_text = q.group(2).strip()
+            p_attrs = q.group(3) or ""
+            a_text = q.group(4).strip()
+            return (
+                '<div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">'
+                f'<h3{h3_attrs} itemprop="name">{q_text}</h3>'
+                '<div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">'
+                f'<p{p_attrs} itemprop="text">{a_text}</p>'
+                "</div>"
+                "</div>"
+            )
+
+        body = pair_re.sub(pair_repl, body)
+        return opening + body + closing
+
+    return section_re.sub(section_repl, html)
+
+
+def _extract_faq_pairs(html: str) -> List[Dict[str, str]]:
+    pairs: List[Dict[str, str]] = []
+    # semantic markup first
+    sem_re = re.compile(
+        r'itemprop=[\'"]name[\'"][^>]*>([\s\S]*?)</h3>[\s\S]*?itemprop=[\'"]text[\'"][^>]*>([\s\S]*?)</p>',
+        flags=re.I,
+    )
+    for m in sem_re.finditer(html):
+        q = strip_html(m.group(1))
+        a = strip_html(m.group(2))
+        if q and a:
+            pairs.append({"q": q, "a": a})
+    if pairs:
+        return pairs[:8]
+
+    raw_re = re.compile(r"<h3[^>]*>([\s\S]*?)</h3>\s*<p[^>]*>([\s\S]*?)</p>", flags=re.I)
+    for m in raw_re.finditer(html):
+        q = strip_html(m.group(1))
+        a = strip_html(m.group(2))
+        if q and a:
+            pairs.append({"q": q, "a": a})
+    return pairs[:8]
+
+
+def ensure_structured_data(html: str, item: dict, public_base_url: str) -> str:
+    html = sanitize_article_html(html or "")
+    html = _unwrap_script_paragraphs(html)
+    html = _ensure_faq_semantic(html)
+
+    # Remove old Article schema before adding normalized JSON-LD.
+    html = _remove_jsonld_by_type(html, "Article")
+
+    slug = (item.get("slug") or "").strip("/")
+    canonical = f"{public_base_url.rstrip('/')}/{slug}/" if slug else public_base_url.rstrip("/") + "/"
+    headline = (item.get("meta_title") or item.get("title") or slug).strip()
+    description = (item.get("meta_description") or "").strip()
+    now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    article_schema = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": headline,
+        "description": description,
+        "author": {"@type": "Organization", "name": "Sowads"},
+        "publisher": {"@type": "Organization", "name": "Sowads"},
+        "datePublished": now_iso,
+        "dateModified": now_iso,
+        "mainEntityOfPage": {"@type": "WebPage", "@id": canonical},
+    }
+
+    faq_pairs = _extract_faq_pairs(html)
+    faq_schema = None
+    if faq_pairs:
+        html = _remove_jsonld_by_type(html, "FAQPage")
+        faq_schema = {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": pair["q"],
+                    "acceptedAnswer": {"@type": "Answer", "text": pair["a"]},
+                }
+                for pair in faq_pairs
+            ],
+        }
+
+    schema_parts = [f'<script type="application/ld+json">{json.dumps(article_schema, ensure_ascii=False)}</script>']
+    if faq_schema:
+        schema_parts.append(f'<script type="application/ld+json">{json.dumps(faq_schema, ensure_ascii=False)}</script>')
+    schema_html = "\n".join(schema_parts)
+
+    if "</article>" in html:
+        html = html.replace("</article>", schema_html + "\n</article>", 1)
+    else:
+        html = html + "\n" + schema_html
+
+    return _unwrap_script_paragraphs(html)
 
 
 def read_rows(path: Path) -> List[dict]:
@@ -173,6 +325,16 @@ def build_publish_job(
         html = extract_html_from_package(r.get("content_package", ""))
         if not html:
             continue
+        html = ensure_structured_data(
+            html,
+            {
+                "slug": slug,
+                "title": (r.get("tema_principal") or "").strip() or slug,
+                "meta_title": (r.get("meta_title") or "").strip(),
+                "meta_description": (r.get("meta_description") or "").strip(),
+            },
+            public_base_url=os.getenv("WP_PUBLIC_BASE_URL", "https://resultsquad.com.br"),
+        )
 
         content_file = content_dir / f"{item_id}.html"
         content_file.write_text(html, encoding="utf-8")
@@ -236,14 +398,24 @@ def run_remote_publish(
         script_lines = [
             "set -e",
             f"cd {shlex.quote(wp_path)}",
+            "wp option update WPLANG pt_BR >/dev/null || true",
             f"SLUG={shlex.quote(slug)}",
             f"TITLE={shlex.quote(title)}",
+            f"META_DESC={shlex.quote(item.get('meta_description', ''))}",
+            f"META_TITLE={shlex.quote(item.get('meta_title', ''))}",
             f"STATUS={shlex.quote(post_status)}",
             f"CONTENT={shlex.quote(content_remote)}",
-            "EXISTING=$(wp post list --name=\"$SLUG\" --post_type=post --post_status=any --field=ID --format=ids | awk '{print $1}')",
-            "if [ -n \"$EXISTING\" ]; then",
-            "  PID=\"$EXISTING\"",
-            "  ACTION=updated",
+            "EXISTING_BY_ID=$(wp post list --post_type=post --post_status=any --meta_key=sowads_content_id --meta_value="
+            + shlex.quote(item["id"])
+            + " --field=ID --format=ids | awk '{print $1}')",
+            "EXISTING_BY_SLUG=$(wp post list --name=\"$SLUG\" --post_type=post --post_status=any --field=ID --format=ids | awk '{print $1}')",
+            "if [ -n \"$EXISTING_BY_ID\" ]; then",
+            "  PID=\"$EXISTING_BY_ID\"",
+            "  ACTION=updated_by_id",
+            "  wp post update \"$PID\" \"$CONTENT\" --post_title=\"$TITLE\" --post_name=\"$SLUG\" --post_status=\"$STATUS\" --post_type=post >/dev/null",
+            "elif [ -n \"$EXISTING_BY_SLUG\" ]; then",
+            "  PID=\"$EXISTING_BY_SLUG\"",
+            "  ACTION=updated_by_slug",
             "  wp post update \"$PID\" \"$CONTENT\" --post_title=\"$TITLE\" --post_name=\"$SLUG\" --post_status=\"$STATUS\" --post_type=post >/dev/null",
             "else",
             "  ACTION=created",
@@ -252,11 +424,14 @@ def run_remote_publish(
             "wp post meta update \"$PID\" sowads_content_id " + shlex.quote(item["id"]) + " >/dev/null || true",
             "wp post meta update \"$PID\" sowads_content_version " + shlex.quote(str(item.get("version", 1))) + " >/dev/null || true",
             "wp post meta update \"$PID\" sowads_batch_id " + shlex.quote(item.get("batch_id", "")) + " >/dev/null || true",
+            "if [ -n \"$META_DESC\" ]; then wp post update \"$PID\" --post_excerpt=\"$META_DESC\" >/dev/null || true; fi",
         ]
         if item.get("meta_title"):
             script_lines.append("wp post meta update \"$PID\" _yoast_wpseo_title " + shlex.quote(item["meta_title"]) + " >/dev/null || true")
+            script_lines.append("wp post meta update \"$PID\" rank_math_title " + shlex.quote(item["meta_title"]) + " >/dev/null || true")
         if item.get("meta_description"):
             script_lines.append("wp post meta update \"$PID\" _yoast_wpseo_metadesc " + shlex.quote(item["meta_description"]) + " >/dev/null || true")
+            script_lines.append("wp post meta update \"$PID\" rank_math_description " + shlex.quote(item["meta_description"]) + " >/dev/null || true")
 
         script_lines += [
             "MID=0",
@@ -266,6 +441,7 @@ def run_remote_publish(
                 f"IMG={shlex.quote(image_remote)}",
                 "if [ -f \"$IMG\" ]; then",
                 "  MID=$(wp media import \"$IMG\" --post_id=\"$PID\" --featured_image --porcelain 2>/dev/null || echo 0)",
+                "  if [ \"$MID\" -gt 0 ]; then wp post meta update \"$MID\" _wp_attachment_image_alt \"$TITLE\" >/dev/null || true; fi",
                 "fi",
             ]
         script_lines.append('echo "RESULT|$PID|$MID|$ACTION"')

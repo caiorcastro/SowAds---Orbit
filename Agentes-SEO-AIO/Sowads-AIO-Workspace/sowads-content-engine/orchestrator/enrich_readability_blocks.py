@@ -24,7 +24,12 @@ def _clean(text: str) -> str:
 
 
 def build_pack(row: dict) -> str:
+    tema = _clean(row.get("tema_principal", "")) or "estratégia digital"
     keyword = _clean(row.get("keyword_primaria", "")) or "performance digital"
+    secondary = [s.strip() for s in _clean(row.get("keywords_secundarias", "")).split("|") if s.strip()]
+    s1 = secondary[0] if len(secondary) > 0 else "intenção de busca"
+    s2 = secondary[1] if len(secondary) > 1 else "eficiência de aquisição"
+    s3 = secondary[2] if len(secondary) > 2 else "governança de execução"
     vertical = _clean(row.get("vertical_alvo", "")) or "negócios"
     angle = _clean(row.get("angulo_conteudo", "")) or "Educacional"
     product = _clean(row.get("produto_sowads_foco", "")) or "Ambos os pilares"
@@ -69,71 +74,66 @@ def build_pack(row: dict) -> str:
       margin: 0 0 8px;
     }}
   </style>
-  <h2>Painel rápido de decisão</h2>
-  <table>
+  <h2>Painel tático: {keyword}</h2>
+  <table style="width:100%;border-collapse:collapse;margin:0 0 26px;table-layout:fixed;border:1px solid #b7b7b7;">
     <thead>
       <tr>
-        <th>Frente</th>
-        <th>Objetivo prático</th>
-        <th>Indicador principal</th>
-        <th>Ritmo de revisão</th>
+        <th style="border:1px solid #b7b7b7;padding:10px 12px;text-align:left;background:#ececec;">Frente</th>
+        <th style="border:1px solid #b7b7b7;padding:10px 12px;text-align:left;background:#ececec;">Objetivo prático</th>
+        <th style="border:1px solid #b7b7b7;padding:10px 12px;text-align:left;background:#ececec;">Indicador principal</th>
+        <th style="border:1px solid #b7b7b7;padding:10px 12px;text-align:left;background:#ececec;">Ritmo de revisão</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>{keyword}</td>
-        <td>Transformar execução em ganho de resultado previsível</td>
-        <td>CAC, CTR e conversão assistida</td>
-        <td>Semanal</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Direção principal</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">{tema}</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Execução orientada por {keyword}</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Semanal</td>
       </tr>
       <tr>
-        <td>SEO + IA Overviews</td>
-        <td>Aumentar presença orgânica em {vertical}</td>
-        <td>Impressões qualificadas e posição média</td>
-        <td>Quinzenal</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Prioridade 1</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">{s1}</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Visibilidade qualificada em {vertical}</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Quinzenal</td>
       </tr>
       <tr>
-        <td>Mídia paga</td>
-        <td>Escalar aquisição sem perder margem</td>
-        <td>CPA/ROAS por campanha</td>
-        <td>Diária</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Prioridade 2</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">{s2}</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Conversão, CAC e margem por canal</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Diária</td>
       </tr>
       <tr>
-        <td>Operação editorial</td>
-        <td>Garantir consistência de execução ({angle})</td>
-        <td>Prazo, qualidade e retrabalho</td>
-        <td>Semanal</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Prioridade 3</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">{s3}</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Qualidade editorial e previsibilidade operacional</td>
+        <td style="border:1px solid #b7b7b7;padding:10px 12px;">Semanal</td>
       </tr>
     </tbody>
   </table>
 
-  <h2>Resumo executável em bullet points</h2>
+  <h2>Resumo executivo em bullet points</h2>
   <ul>
-    <li>Priorize temas com potencial real de negócio e não apenas volume de busca.</li>
-    <li>Conecte conteúdo, mídia e dados na mesma leitura de performance.</li>
-    <li>Use revisão humana para manter precisão, clareza e padrão de marca.</li>
-    <li>Documente aprendizados para reduzir retrabalho e acelerar decisões.</li>
-    <li>Ative {product} de forma integrada para ganhar velocidade com controle.</li>
+    <li>Conecte <strong>{keyword}</strong> ao objetivo de negócio mais próximo de receita.</li>
+    <li>Use <strong>{s1}</strong> para priorizar pauta com potencial real de conversão.</li>
+    <li>Sincronize conteúdo e mídia com revisão humana para reduzir retrabalho.</li>
+    <li>Monitore performance por unidade/canal em ciclos curtos de decisão.</li>
+    <li>Ative <strong>{product}</strong> com governança para escalar sem perder padrão.</li>
   </ul>
 
-  <h2>Checklist de implementação (30 dias)</h2>
+  <h2>Checklist de execução (30 dias)</h2>
   <ol>
-    <li>Mapear lacunas de funil e definir metas objetivas por canal.</li>
-    <li>Publicar blocos de conteúdo orientados por intenção e performance.</li>
-    <li>Distribuir com mídia paga e monitorar sinais de eficiência.</li>
-    <li>Ajustar backlog com base em dados de conversão e custo.</li>
+    <li>Mapear gargalos ligados a {keyword} e alinhar metas operacionais.</li>
+    <li>Publicar conteúdo orientado por {s1} com escaneabilidade real.</li>
+    <li>Distribuir e medir impacto em {s2} com leitura semanal.</li>
+    <li>Ajustar backlog com base em dados de {s3} e custo incremental.</li>
   </ol>
 </section>
 """.strip()
 
 
 def _insert_index_early(html: str) -> Tuple[int, str]:
-    # Natural placement: early in article, before the second H2 if possible.
-    h2s = list(re.finditer(r"<h2[^>]*>[\s\S]*?</h2>", html, flags=re.I))
-    if len(h2s) >= 2:
-        return h2s[1].start(), "inserted_before_second_h2"
-
-    # Fallback: after the second paragraph in the introduction.
+    # Natural placement: after early paragraphs, avoiding intro wall of text.
     ps = list(re.finditer(r"<p[^>]*>[\s\S]*?</p>", html, flags=re.I))
     if len(ps) >= 2:
         return ps[1].end(), "inserted_after_second_paragraph"
@@ -176,7 +176,7 @@ def inject_or_replace(html: str, block: str) -> Tuple[str, str]:
     return new_html, mode
 
 
-def process_csv(input_csv: Path, output_csv: Path) -> dict:
+def process_csv(input_csv: Path, output_csv: Path, inject: bool = False) -> dict:
     with input_csv.open("r", encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
         fieldnames = list(rows[0].keys()) if rows else []
@@ -188,8 +188,21 @@ def process_csv(input_csv: Path, output_csv: Path) -> dict:
     for row in rows:
         old_package = row.get("content_package", "") or ""
         meta, html, has_markers = split_content_package(old_package)
-        block = build_pack(row)
-        new_html, mode = inject_or_replace(html, block)
+        marker = re.search(
+            rf"<section[^>]*id=[\"']{BLOCK_ID}[\"'][^>]*>[\s\S]*?</section>",
+            html,
+            flags=re.I,
+        )
+        if inject:
+            block = build_pack(row)
+            new_html, mode = inject_or_replace(html, block)
+        else:
+            if marker:
+                new_html = html[: marker.start()] + html[marker.end() :]
+                mode = "removed_legacy_pack"
+            else:
+                new_html = html
+                mode = "unchanged_no_pack"
         modes[mode] = modes.get(mode, 0) + 1
         new_package = build_content_package(meta, new_html, with_markers=has_markers or bool(meta))
         if new_package != old_package:
@@ -217,12 +230,17 @@ def main() -> int:
     parser.add_argument("--input-csv", required=True)
     parser.add_argument("--output-csv", required=True)
     parser.add_argument(
+        "--inject",
+        action="store_true",
+        help="Insere/reposiciona o pack legado de leitura. Padrão: apenas remove o pack legado, sem inserir.",
+    )
+    parser.add_argument(
         "--report-json",
         default="Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/outputs/reports/readability_enrichment_report.json",
     )
     args = parser.parse_args()
 
-    report = process_csv(Path(args.input_csv), Path(args.output_csv))
+    report = process_csv(Path(args.input_csv), Path(args.output_csv), inject=bool(args.inject))
     report["timestamp"] = now_stamp()
     report_path = Path(args.report_json)
     report_path.parent.mkdir(parents=True, exist_ok=True)

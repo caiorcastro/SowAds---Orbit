@@ -251,10 +251,13 @@ Melhorias relevantes já absorvidas no processo:
 
 - remoção de artefatos de cauda (` ``` ` e blocos de separador repetitivo)
 - detecção e correção de repetição no final do texto
-- controle de similaridade entre H1 e Meta Title
+- controle de similaridade entre título do post (H1 nativo WP) e Meta Title
+- bloqueio de H1 dentro do corpo do HTML package
 - enriquecimento de legibilidade com elementos visuais reais
-- reposicionamento de listas/tabelas para início/meio (não no final)
+- política visual adaptativa: 2 a 3 recursos por artigo (não todos ao mesmo tempo)
+- bloqueio de template rígido e repetição estrutural entre artigos do lote
 - padronização de tabela com bordas cinza para leitura melhor
+- controle de excesso de negrito para manter elegância executiva
 - separação de logs de IA (`gemini_calls.jsonl`) com horários e custo estimado
 - suporte operacional para execução assíncrona por agente
 
@@ -378,4 +381,3 @@ Se este README estiver atualizado, qualquer pessoa do time consegue:
 4. auditar resultado por logs reais
 5. corrigir falhas recorrentes com scripts de repair
 6. publicar lote com rastreabilidade fim a fim
-
