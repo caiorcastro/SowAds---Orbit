@@ -39,6 +39,8 @@ SOWADS/
 
 ### 1) Fabrica de conteudo (SEO/AIO)
 Entrada principal:
+- `Agentes-SEO-AIO/README.md`
+- `Agentes-SEO-AIO/Sowads-AIO-Workspace/README.md`
 - `Agentes-SEO-AIO/Sowads-AIO-Workspace/sowads-content-engine/README.md`
 
 Arquivos-chave:
