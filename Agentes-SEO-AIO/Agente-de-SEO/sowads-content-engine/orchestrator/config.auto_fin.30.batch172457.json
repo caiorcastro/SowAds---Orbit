@@ -1,0 +1,15 @@
+{
+  "batch_id": "BATCH-automotivo-financeiro-20260221-172457",
+  "batch_topic": "automotivo-financeiro",
+  "quantidade_temas": 30,
+  "test_mode": false,
+  "publish_mode": "publish",
+  "max_rewrites": 2,
+  "min_article_words": 1500,
+  "keyword_density_min_pct": 1.5,
+  "keyword_density_max_pct": 2.0,
+  "history_window": 500,
+  "request_delay_seconds": 0.6,
+  "system_path": "system/system.md",
+  "user_path": "system/user.md"
+}

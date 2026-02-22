@@ -1,0 +1,18 @@
+{
+  "nicho": "Marketing digital e IA para varejo físico e omnichannel",
+  "vertical_alvo": "Varejo",
+  "porte_empresa_alvo": "Média Empresa",
+  "modelo_negocio_alvo": "B2C",
+  "produto_sowads_foco": "Ambos os pilares",
+  "batch_topic": "varejo",
+  "quantidade_temas": 15,
+  "publish_mode": "publish",
+  "restricoes": "Sem promessas absolutas; foco operacional e margem; aderente a 2026",
+  "url_interna": "",
+  "min_article_words": 1500,
+  "keyword_density_min_pct": 1.5,
+  "keyword_density_max_pct": 2.0,
+  "test_mode": false,
+  "max_rewrites": 3,
+  "batch_id": ""
+}

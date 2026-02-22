@@ -1,0 +1,15 @@
+{
+  "batch_id": "BATCH-bet-igaming-core-20260221-220212",
+  "batch_topic": "bet-igaming-core",
+  "quantidade_temas": 30,
+  "test_mode": false,
+  "publish_mode": "publish",
+  "max_rewrites": 0,
+  "min_article_words": 1500,
+  "keyword_density_min_pct": 1.5,
+  "keyword_density_max_pct": 2.0,
+  "history_window": 500,
+  "request_delay_seconds": 0.7,
+  "system_path": "system/system.md",
+  "user_path": "system/user.md"
+}

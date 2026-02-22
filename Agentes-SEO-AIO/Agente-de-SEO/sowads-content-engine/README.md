@@ -1,0 +1,331 @@
+# Sowads Content Engine
+
+Pipeline multiagente para produção, auditoria, imagem e publicação de conteúdo da Sowads em escala, com rastreabilidade completa por lote.
+
+## 1) Objetivo
+
+Este projeto existe para operar uma linha de produção editorial com padrão técnico e visual consistente, reduzindo retrabalho manual.
+
+Resultados esperados por lote:
+- temas gerados com briefing estruturado
+- artigos WordPress-ready em pacote padronizado
+- auditoria SEO/GEO/E-E-A-T com gates
+- validação de similaridade/canibalização
+- prompts de imagem e imagens geradas
+- publicação no WordPress com logs e evidências
+
+## 2) Arquitetura
+
+Fluxo principal (`agent all`):
+1. `agent01` temas
+2. `agent02` artigos
+3. `agent03` auditoria SEO/GEO
+4. `agent04` similaridade
+5. loop de rewrite seletivo (itens reprovados)
+6. `agent05` prompts de imagem
+7. render de imagens (`render_images.py`)
+8. `agent06` publicação (`publish_wp_cli.py`)
+
+Princípios:
+- `system/system.md` e `system/user.md` são fonte de verdade
+- determinístico antes de LLM-judge
+- bloqueio por falha crítica
+- logs reais por chamada e por publicação
+- execução síncrona e assíncrona por agente
+
+## 3) Estrutura de pastas
+
+```text
+sowads-content-engine/
+├── agents/
+│   ├── agent_01_theme_generator/
+│   ├── agent_02_article_generator/
+│   ├── agent_03_seo_audit/
+│   ├── agent_04_similarity/
+│   ├── agent_05_image_prompt/
+│   └── agent_06_publisher/
+├── data/
+│   ├── batches/
+│   ├── history/
+│   ├── logs/
+│   └── cache/
+├── orchestrator/
+│   ├── run_pipeline.py
+│   ├── render_images.py
+│   ├── publish_wp_cli.py
+│   ├── enrich_readability_blocks.py
+│   ├── enforce_batch_constraints.py
+│   ├── repair_article_packages.py
+│   └── repair_h1_similarity.py
+├── outputs/
+│   ├── themes/
+│   ├── articles/
+│   ├── audits/
+│   ├── similarity/
+│   ├── image-prompts/
+│   ├── generated-images/
+│   ├── publish-jobs/
+│   ├── reports/
+│   └── assincronos/
+└── system/
+    ├── system.md
+    └── user.md
+```
+
+## 4) Requisitos
+
+- Python 3.10+
+- acesso às APIs (Gemini e/ou Replicate)
+- acesso WordPress via SSH/WP-CLI para publicação
+
+## 5) Configuração
+
+Crie `.env.local` no diretório do engine.
+
+Exemplo mínimo:
+
+```env
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash
+
+# preços (opcional, para estimativa em log)
+GEMINI_INPUT_COST_PER_1M=0
+GEMINI_OUTPUT_COST_PER_1M=0
+
+# replicate (imagem)
+REPLICATE_API_TOKEN=...
+REPLICATE_MODEL=black-forest-labs/flux-1.1-pro
+
+# wordpress publication
+WP_SSH_HOST=147.93.37.148
+WP_SSH_PORT=65002
+WP_SSH_USER=...
+WP_SSH_PASSWORD=...
+WP_PATH=/home/.../public_html
+```
+
+## 6) Contratos de dados
+
+### 6.1 Themes CSV
+Arquivo: `outputs/themes/{batch_id}_themes.csv`
+
+Colunas:
+- `id`
+- `timestamp`
+- `tema_principal`
+- `keyword_primaria`
+- `keywords_secundarias` (separadas por `|`)
+- `porte_empresa_alvo`
+- `modelo_negocio_alvo`
+- `vertical_alvo`
+- `produto_sowads_foco`
+- `angulo_conteudo`
+- `url_interna`
+- `funil`
+- `busca`
+- `titulo_anuncio`
+- `notes`
+
+### 6.2 Articles CSV
+Arquivo: `outputs/articles/{batch_id}_articles*.csv`
+
+Campos-chave:
+- `id`, `batch_id`, `version`
+- `slug`, `meta_title`, `meta_description`
+- `content_package`
+- `status`
+
+`content_package` é obrigatório com 2 blocos:
+- `=== META INFORMATION ===`
+- `=== HTML PACKAGE — WORDPRESS READY ===`
+
+### 6.3 Status de artigo
+- `APPROVED`: aprovado para publicação
+- `PENDING_QA`: pendente de revisão/ajuste
+- `REJECTED`: bloqueado por gates críticos
+
+## 7) Gates de qualidade
+
+Implementados no `agent03`/orquestrador:
+
+Críticos (bloqueiam publicação):
+- `missing_blocks`
+- `meta_title_too_long`
+- `meta_description_too_long`
+- `external_link`
+- `invalid_slug`
+- `missing_h1`
+- `faq_missing`
+- `article_schema_missing`
+- `temporal_incoherence`
+- `malformed_tail`
+- `repetitive_tail`
+- `low_visual_structure`
+- `late_visual_structure`
+
+Regras atuais relevantes de conteúdo:
+- mínimo de palavras configurável (operação atual: 1500+)
+- densidade de keyword por faixa de controle
+- H1 e Meta Title não podem ser praticamente idênticos
+- estrutura visual obrigatória
+  - tabela + lista real
+  - elementos visuais na primeira metade do artigo
+
+## 8) Logs e rastreabilidade
+
+`data/logs/logs.jsonl`
+- eventos de execução por fase (start/success/fail)
+
+`data/logs/gemini_calls.jsonl`
+- log real de chamadas Gemini
+- inclui request hash/text, response raw/text, status HTTP, latência, usage, custo estimado
+
+`data/logs/publication_log.jsonl`
+- status por item publicado (created/updated/fail)
+
+`outputs/publish-jobs/{PUB-ID}/`
+- `items.json`
+- `published_posts.csv`
+- `publish_results_remote.json`
+
+## 9) Execução
+
+### 9.1 Pipeline completo
+
+```bash
+python orchestrator/run_pipeline.py \
+  --base . \
+  --config orchestrator/config.example.json
+```
+
+### 9.2 Pipeline completo em teste
+
+```bash
+python orchestrator/run_pipeline.py \
+  --base . \
+  --config orchestrator/config.example.json \
+  --test-mode \
+  --quantity 5
+```
+
+### 9.3 Agente isolado (assíncrono)
+
+```bash
+python orchestrator/run_pipeline.py \
+  --base . \
+  --config orchestrator/config.example.json \
+  --agent agent03 \
+  --articles-file data/batches/BATCH-.../articles_v1.csv \
+  --async-output
+```
+
+Saída assíncrona:
+- `outputs/assincronos/{agent}/{ASYNC-ID}/`
+
+### 9.4 Gerar imagens
+
+Último batch:
+
+```bash
+python orchestrator/render_images.py --base . --latest
+```
+
+Todos os batches:
+
+```bash
+python orchestrator/render_images.py --base . --all
+```
+
+### 9.5 Publicar no WordPress (SSH/WP-CLI)
+
+```bash
+python orchestrator/publish_wp_cli.py \
+  --base . \
+  --articles-csv outputs/articles/BATCH-..._articles_final.csv \
+  --include-statuses APPROVED,PENDING_QA,REJECTED \
+  --status publish \
+  --ssh-host $WP_SSH_HOST \
+  --ssh-port $WP_SSH_PORT \
+  --ssh-user $WP_SSH_USER \
+  --ssh-password "$WP_SSH_PASSWORD" \
+  --wp-path $WP_PATH
+```
+
+## 10) Utilitários de manutenção
+
+### 10.1 Enriquecer legibilidade (tabela/listas)
+
+```bash
+python orchestrator/enrich_readability_blocks.py \
+  --input-csv outputs/articles/PUBLISH-recent30-before-enrichment.csv \
+  --output-csv outputs/articles/PUBLISH-recent30-enriched-v2.csv \
+  --report-json outputs/reports/recent30_readability_enrichment_report_v2.json
+```
+
+Comportamento:
+- insere bloco visual em posição natural (antes do 2º H2)
+- tabela com bordas cinza e header legível
+- listas com espaçamento adequado
+
+### 10.2 Reforçar constraints de lote
+
+```bash
+python orchestrator/enforce_batch_constraints.py \
+  --input-csv outputs/articles/BATCH-..._articles.csv \
+  --output-csv outputs/articles/BATCH-..._articles_final.csv \
+  --report-json outputs/reports/BATCH-..._constraints.json \
+  --min-words 1500 \
+  --density-min 1.5 \
+  --density-max 2.0
+```
+
+### 10.3 Reparar pacote/artigo
+
+```bash
+python orchestrator/repair_article_packages.py ...
+python orchestrator/repair_h1_similarity.py ...
+```
+
+## 11) Convenções de batch
+
+Formato recomendado:
+- `BATCH-{assunto}-{YYYYMMDD-HHMMSS}`
+
+Exemplos:
+- `BATCH-varejo-20260221-155713`
+- `BATCH-automotivo-financeiro-20260221-172457`
+
+## 12) Boas práticas operacionais
+
+- não publicar lote sem auditar `outputs/audits` e `outputs/similarity`
+- manter histórico atualizado para reduzir canibalização futura
+- rodar em lotes menores quando o custo de imagem estiver alto
+- sempre validar visual dos primeiros posts de cada lote antes de publicar em massa
+
+## 13) Troubleshooting
+
+### Falha de publicação por SSH
+- valide host/porta/usuário/senha
+- teste `wp --info` direto no servidor
+- confira permissões em `wp-content/uploads`
+
+### Artigo com estrutura quebrada
+- rode `repair_article_packages.py`
+- rode `enrich_readability_blocks.py` para reforçar estrutura visual
+
+### Densidade fora do alvo
+- rode `enforce_batch_constraints.py`
+- verifique `keyword_primaria` e duplicidade de termo no H1/H2
+
+### Similaridade alta
+- execute rewrite seletivo só para IDs com `similarity_score > 60`
+
+## 14) Segurança
+
+- nunca versionar `.env.local`
+- não hardcode de chave/API/senha
+- logs de IA podem conter prompt/resposta completos: tratar como dados sensíveis
+
+---
+
+Se este README divergir de contrato técnico específico de um agente, prevalecem os arquivos em `agents/*` e `orchestrator/gates.md`.

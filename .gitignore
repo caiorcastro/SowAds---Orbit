@@ -1,0 +1,23 @@
+# secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# python
+**/__pycache__/
+**/*.pyc
+
+# runtime/generated artifacts
+Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/logs/
+Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/cache/
+Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/history/
+Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/data/batches/
+Agentes-SEO-AIO/Agente-de-SEO/sowads-content-engine/outputs/
+Migracao-do-Site/context7.log
+Migracao-do-Site/legado/
+Migracao-do-Site/verificacao-visual/
+
+# local editors
+**/.DS_Store
+**/.idea/
+**/.vscode/
