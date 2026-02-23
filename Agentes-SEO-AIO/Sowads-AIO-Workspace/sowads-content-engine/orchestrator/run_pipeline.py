@@ -77,6 +77,10 @@ GENERIC_OPENINGS = [
     "no mundo digital de hoje",
     "voce sabia que",
     "vivemos em uma era",
+    "em um mercado cada vez mais",
+    "nos dias de hoje",
+    "atualmente as empresas",
+    "com a evolucao da tecnologia",
 ]
 
 STRUCTURE_PROFILES = [
@@ -114,6 +118,7 @@ CRITICAL_REASON_CODES = {
     "bold_overuse",
     "fixed_blocks_detected",
     "repeated_structure_pattern",
+    "examples_missing",
 }
 
 
@@ -961,13 +966,16 @@ Meta Description: {meta_desc}
             + "- Estrutura é princípio, não molde fixo: adaptar seções ao tema sem copiar blocos/títulos padronizados.\n"
             + "- Não repetir blocos fixos, nomes padronizados ou ordem idêntica de seções entre temas diferentes.\n"
             + "- Proibido usar headings literais: 'Painel tático', 'Resumo executivo em bullet points', 'Checklist de execução (30 dias)', 'Prioridade 1', 'Prioridade 2', 'Prioridade 3'.\n"
+            + "- Abertura obrigatória em 2 parágrafos curtos: contexto de decisão + impacto prático no negócio.\n"
+            + "- Introdução deve trazer gancho forte e específico; evitar frases vagas e clichês de mercado.\n"
             + "- Usar 2 a 3 recursos visuais por artigo, escolhidos conforme o assunto: lista numerada, bullets, mini-checklist, tabela, blockquote, frases-âncora em negrito.\n"
             + "- Não usar todos os recursos no mesmo artigo; escolha apenas os que aumentam clareza do tema.\n"
             + "- O primeiro recurso visual estrutural (lista/tabela/blockquote/checklist) deve entrar após o 2º, 3º ou 4º parágrafo.\n"
             + "- Evitar bloco visual de apêndice no fim do artigo.\n"
             + "- Tabela com células curtas e objetivas (sem reticências, sem texto truncado, sem '...').\n"
-            + "- Parágrafos curtos: preferir 2 a 4 frases por parágrafo e evitar blocos longos.\n"
+            + "- Parágrafos curtos: 30-65 palavras por parágrafo (máximo absoluto 85 palavras).\n"
             + "- Fluidez, clareza, elegância executiva e densidade sem prolixidade são prioritárias.\n"
+            + "- Linguagem executiva clara: técnica sem soar acadêmica, pesada ou genérica.\n"
             + "- Incluir seção CTA obrigatória: <section class=\"sowads-cta\">...</section>.\n"
             + "- FAQ obrigatória com 5 a 8 perguntas e respostas completas (2 a 4 frases cada resposta).\n"
             + "- FAQ HTML deve usar itemprop (Question/Answer) e também JSON-LD FAQPage coerente.\n"
@@ -975,9 +983,11 @@ Meta Description: {meta_desc}
             + "- Incluir 1 a 3 referências verificáveis citadas em texto simples com fonte + ano (sem hyperlink externo).\n"
             + "- Cada H2 deve começar com um parágrafo-resumo autossuficiente (40-60 palavras) para GEO.\n"
             + "- Incluir mini diagnóstico executivo no formato: sintoma -> causa -> impacto.\n"
-            + "- Incluir pelo menos 1 cenário operacional com escala numérica realista (ex.: unidades, páginas, budget, catálogo).\n"
+            + "- Incluir pelo menos 1 cenário operacional com escala numérica realista (ex.: unidades, páginas, budget, catálogo), sem prometer resultados.\n"
+            + "- Incluir obrigatoriamente 1 bloco com subtítulo explícito de exemplo aplicado ('Exemplo prático' ou 'Cenário aplicado').\n"
             + "- Incluir seção de erros críticos a evitar com 4-6 bullet points específicos.\n"
             + "- Aplicar negrito com inteligência: termos técnicos na primeira menção, frases de decisão estratégica e regras operacionais; evitar excesso de negrito.\n"
+            + "- Não inserir CSS inline, comentários HTML, placeholders ou texto técnico fora do conteúdo final.\n"
             + "\n\n[FORMATO OBRIGATORIO DE SAIDA]\n"
             + "Retorne EXATAMENTE neste formato:\n"
             + "=== META INFORMATION ===\n"
@@ -1280,6 +1290,16 @@ Meta Description: {meta_desc}
                 if not has_grid_style:
                     issues.append("Tabela sem estilo de grade legível (linhas/bordas cinza visíveis).")
                     score -= 4
+                verbose_cells = 0
+                for cell in re.findall(r"<t[dh][^>]*>([\s\S]*?)</t[dh]>", table_block, flags=re.I):
+                    cell_words = self._count_words(strip_html(cell))
+                    if cell_words > 18:
+                        verbose_cells += 1
+                if verbose_cells > 0:
+                    issues.append(
+                        f"Tabela com células verbosas ({verbose_cells}); usar texto curto e objetivo nas colunas."
+                    )
+                    score -= min(8, verbose_cells * 2)
 
             # Paragraph readability guardrail (avoid giant walls of text).
             long_paragraphs = 0
@@ -1288,12 +1308,30 @@ Meta Description: {meta_desc}
                 # Skip script payloads accidentally captured in malformed content.
                 if not ptxt or "@context" in ptxt or "@type" in ptxt:
                     continue
-                if self._count_words(ptxt) > 85:
+                if self._count_words(ptxt) > 70:
                     long_paragraphs += 1
             if long_paragraphs > 0:
                 reason_codes.append("long_paragraphs")
                 issues.append(f"Parágrafos longos detectados ({long_paragraphs}); quebrar em blocos menores.")
-                score -= min(12, long_paragraphs * 3)
+                score -= min(16, long_paragraphs * 4)
+
+            # Require practical example/case block to reduce generic IA pattern.
+            example_markers = [
+                r"\bexemplo pr[aá]tico\b",
+                r"\bcen[aá]rio aplicado\b",
+                r"\bmini-?caso\b",
+                r"\bcaso real\b",
+                r"\bna pr[aá]tica\b",
+            ]
+            if not any(re.search(marker, html, flags=re.I) for marker in example_markers):
+                reason_codes.append("examples_missing")
+                issues.append("Falta exemplo prático/mini-caso operacional; adicionar bloco aplicado ao contexto do tema.")
+                score -= 12
+
+            first_chunk = strip_html(html[:900]).lower()
+            if "?" not in first_chunk and not re.search(r"\b\d{2,4}\b", first_chunk):
+                issues.append("Introdução fraca: incluir gancho de decisão (pergunta ou contexto numérico concreto).")
+                score -= 5
 
             if word_count > 0:
                 bold_ratio = strong_words / word_count

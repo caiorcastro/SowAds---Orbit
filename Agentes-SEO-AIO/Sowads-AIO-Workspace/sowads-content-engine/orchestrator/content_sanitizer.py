@@ -178,6 +178,53 @@ def _ensure_faq_semantic_markup(html: str) -> str:
     return section_re.sub(_section_repl, html)
 
 
+def _split_long_paragraphs(html: str, max_words: int = 70, target_words: int = 46) -> str:
+    paragraph_re = re.compile(r"<p([^>]*)>([\s\S]*?)</p>", flags=re.I)
+
+    def _repl(match: re.Match) -> str:
+        attrs = match.group(1) or ""
+        inner = (match.group(2) or "").strip()
+        if not inner:
+            return match.group(0)
+        # Keep semantic/structured nodes intact.
+        if re.search(r"<(script|style|img|iframe|table|ul|ol|blockquote)\b", inner, flags=re.I):
+            return match.group(0)
+        plain = _strip_tags_keep_case(inner)
+        wc = len(re.findall(r"[\wÀ-ÿ-]+", plain))
+        if wc <= max_words:
+            return match.group(0)
+
+        parts = re.split(r"(?<=[\.\!\?])\s+", plain)
+        parts = [p.strip() for p in parts if p.strip()]
+        if len(parts) < 2:
+            return match.group(0)
+
+        chunks = []
+        buf = []
+        buf_words = 0
+        for sent in parts:
+            sw = len(re.findall(r"[\wÀ-ÿ-]+", sent))
+            if buf and buf_words + sw > target_words:
+                chunks.append(" ".join(buf).strip())
+                buf = [sent]
+                buf_words = sw
+            else:
+                buf.append(sent)
+                buf_words += sw
+        if buf:
+            chunks.append(" ".join(buf).strip())
+
+        if len(chunks) < 2:
+            return match.group(0)
+
+        built = []
+        for ch in chunks:
+            built.append(f"<p{attrs}>{ch}</p>")
+        return "".join(built)
+
+    return paragraph_re.sub(_repl, html)
+
+
 def sanitize_article_html(html: str) -> str:
     html = _normalize_newlines(html)
     html = _remove_trailing_noise(html)
@@ -193,6 +240,7 @@ def sanitize_article_html(html: str) -> str:
     html = _clip_to_article(html)
     html = _unwrap_article_root(html)
     html = _demote_body_h1_to_h2(html)
+    html = _split_long_paragraphs(html)
     html = _ensure_faq_semantic_markup(html)
     html = _remove_trailing_noise(html)
     html = _unwrap_script_paragraphs(html)
