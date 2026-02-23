@@ -185,6 +185,13 @@ Regras atuais relevantes de conteúdo:
   - sem blocos fixos reaproveitados entre temas
   - tabela (quando houver) com bordas cinza e células objetivas
 
+Regras anti-template IA:
+- alternância de perfil estrutural por artigo (guia, diagnóstico, framework, playbook)
+- banimento de moldes fixos repetidos em sequência
+- penalidade de repetição em headings/padrões de seção
+- parágrafos longos em série reduzem score e geram rewrite
+- negrito limitado a termos críticos e decisão operacional
+
 ## 8) Logs e rastreabilidade
 
 `data/logs/logs.jsonl`
@@ -201,6 +208,10 @@ Regras atuais relevantes de conteúdo:
 - `items.json`
 - `published_posts.csv`
 - `publish_results_remote.json`
+
+`outputs/reports/*gemini_review*.json`
+- auditoria pós-publicação feita por Gemini (camada externa)
+- resumo de score, risco de padrão IA e ações de melhoria
 
 ## 9) Execução
 

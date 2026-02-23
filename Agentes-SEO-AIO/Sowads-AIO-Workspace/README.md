@@ -258,6 +258,54 @@ Melhorias relevantes já absorvidas no processo:
 - bloqueio de template rígido e repetição estrutural entre artigos do lote
 - padronização de tabela com bordas cinza para leitura melhor
 - controle de excesso de negrito para manter elegância executiva
+
+---
+
+## 8) Regras editoriais anti-padrão (obrigatórias)
+
+Para evitar o efeito de conteúdo “carimbado por IA”, a fábrica opera com regras de variação estrutural:
+
+- proibição de blocos fixos repetidos entre temas (ex.: “Painel tático”, “Resumo executivo em bullet points”, “Checklist de execução (30 dias)”)
+- perfis estruturais alternados por artigo (guia, diagnóstico, framework, playbook, tese prática)
+- limite de densidade de destaque para evitar texto poluído
+- limitação de parágrafos longos com penalidade em auditoria
+- recurso visual obrigatório cedo no texto (após 2º, 3º ou 4º parágrafo), sem forçar mesmo bloco em todos os artigos
+
+Princípio: estrutura é conjunto de princípios, não molde fixo.
+
+---
+
+## 9) Regras de legibilidade e elementos visuais
+
+Aplicado por prompt + auditoria:
+
+- cada artigo usa 2 a 3 recursos entre: listas numeradas, bullets, mini-checklist, tabela, blockquote, frase-âncora
+- tabelas devem ser curtas e operacionais (células objetivas, sem blocos textuais longos)
+- bullets com valor prático real, não decorativo
+- fluidez executiva: tom técnico e claro, sem prolixidade
+
+Aplicado no front (tema WordPress):
+
+- espaçamento reforçado entre seções e headings de posts
+- respiro maior entre imagem destacada e início do conteúdo
+- bordas de tabela em cinza para leitura
+
+---
+
+## 10) Auditoria Gemini pós-publicação (camada externa)
+
+Além dos gates internos da fábrica, existe revisão externa opcional com Gemini:
+
+- entrada: URL publicada
+- saída: score, risco de padrão de IA, top_issues, top_fixes
+- destino: `sowads-content-engine/outputs/reports/*gemini_review*.json`
+
+Uso recomendado:
+
+1. publicar lote piloto (ex.: 5)
+2. rodar revisão Gemini
+3. incorporar ajustes no prompt/sanitização
+4. escalar lote completo
 - separação de logs de IA (`gemini_calls.jsonl`) com horários e custo estimado
 - suporte operacional para execução assíncrona por agente
 

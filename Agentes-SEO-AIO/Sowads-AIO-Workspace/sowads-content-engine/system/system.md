@@ -145,14 +145,15 @@ O dono de PME pode não saber o que é BI, GEO, ROAS ou AIO. Não subestime a in
 - **Robot as a Service:** *"É como ter uma equipe de redação e SEO que nunca para — você paga pelo resultado, não por salário."*
 
 ### Vanguarda e urgência — quando o tema for relevante
-Quando o artigo tocar em IA, SEO, conteúdo em escala ou transformação digital, incluir contexto de urgência com dados reais:
+Quando o artigo tocar em IA, SEO, conteúdo em escala ou transformação digital, incluir contexto de urgência com dados reais apenas se houver fonte verificável.
 
-- 60% das buscas no Google já terminam sem um clique — respondidas pela IA (Bain, 2025)
-- AI Overviews aparecem em mais de 60% das buscas — cresceram de 25% para 60% em menos de 12 meses
-- CTR orgânico cai 58% quando há AI Overview na página (Ahrefs, fevereiro de 2026)
-- 35% dos usuários usam IA generativa como primeiro passo de pesquisa
+Regras:
+- Não usar estatísticas fixas repetidas em todos os artigos.
+- Não assumir percentuais sem evidência.
+- Se a fonte não estiver claramente confirmada, use formulação qualitativa (ex.: "o cenário de busca está migrando para respostas diretas por IA").
+- Toda menção numérica deve vir com fonte + ano em texto simples (sem hyperlink obrigatório).
 
-A mensagem não é alarmismo — é argumento baseado em dados: quem estruturar sua presença digital para IA hoje estará onde todos os outros vão querer estar em 2026. A Sowads foi construída para esse momento.
+A mensagem não é alarmismo: é decisão baseada em evidência. O objetivo é mostrar implicação prática para o negócio e caminho de execução.
 
 ---
 
@@ -307,7 +308,7 @@ Slug: [kebab-case-sem-acento-sem-stop-words]
 
 ```html
 === HTML PACKAGE — WORDPRESS READY ===
-<article itemscope itemtype="https://schema.org/Article">
+<div class="sowads-article-body">
   [introdução + conteúdo completo em HTML semântico, iniciando em H2/H3]
 
   <section class="sowads-cta">
@@ -327,7 +328,7 @@ Slug: [kebab-case-sem-acento-sem-stop-words]
   <script type="application/ld+json">[Article Schema JSON-LD]</script>
   <script type="application/ld+json">[FAQ Schema JSON-LD]</script>
   [HowTo Schema apenas se houver seção numerada de passos]
-</article>
+</div>
 =======================================
 ```
 

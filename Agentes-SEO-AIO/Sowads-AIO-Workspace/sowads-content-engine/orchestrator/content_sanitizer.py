@@ -20,6 +20,14 @@ def _strip_tags(text: str) -> str:
     return text
 
 
+def _strip_tags_keep_case(text: str) -> str:
+    text = re.sub(r"<script[^>]*>[\s\S]*?</script>", " ", text, flags=re.I)
+    text = re.sub(r"<style[^>]*>[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def sanitize_meta_block(meta: str) -> str:
     meta = _normalize_newlines(meta)
     cleaned = []
@@ -55,6 +63,23 @@ def _clip_to_article(html: str) -> str:
         if end_match:
             html = html[: end_match.end()]
     return html
+
+
+def _unwrap_article_root(html: str) -> str:
+    """Avoid nested <article> in WP single template by normalizing the body root to a div."""
+    if not html:
+        return ""
+    html = html.strip()
+    open_match = re.match(r"<article\b[^>]*>", html, flags=re.I)
+    close_match = re.search(r"</article>\s*$", html, flags=re.I)
+    if not open_match or not close_match:
+        return html
+    if open_match.end() >= close_match.start():
+        return html
+    inner = html[open_match.end(): close_match.start()].strip()
+    if not inner:
+        return '<div class="sowads-article-body"></div>'
+    return f'<div class="sowads-article-body">\n{inner}\n</div>'
 
 
 def _dedupe_repeated_trailing_paragraphs(html: str, min_chars: int = 40) -> str:
@@ -98,50 +123,57 @@ def _demote_body_h1_to_h2(html: str) -> str:
 
 
 def _ensure_faq_semantic_markup(html: str) -> str:
+    def _extract_pairs(raw: str):
+        pairs = []
+        sem_re = re.compile(
+            r'itemprop=[\'"]name[\'"][^>]*>([\s\S]*?)</h3>[\s\S]*?itemprop=[\'"]text[\'"][^>]*>([\s\S]*?)</p>',
+            flags=re.I,
+        )
+        for m in sem_re.finditer(raw):
+            q = _strip_tags_keep_case(m.group(1))
+            a = _strip_tags_keep_case(m.group(2))
+            if q and a:
+                pairs.append((q, a))
+        if pairs:
+            return pairs[:8]
+        raw_re = re.compile(r"<h3[^>]*>([\s\S]*?)</h3>[\s\S]*?<p[^>]*>([\s\S]*?)</p>", flags=re.I)
+        for m in raw_re.finditer(raw):
+            q = _strip_tags_keep_case(m.group(1))
+            a = _strip_tags_keep_case(m.group(2))
+            if q and a:
+                pairs.append((q, a))
+        return pairs[:8]
+
     section_re = re.compile(
         r"(<section[^>]*class=[\"'][^\"']*faq-section[^\"']*[\"'][^>]*>)([\s\S]*?)(</section>)",
         flags=re.I,
     )
 
     def _section_repl(match: re.Match) -> str:
-        opening = match.group(1)
         body = match.group(2)
-        closing = match.group(3)
-
-        if "itemscope" not in opening.lower():
-            opening = opening[:-1] + ' itemscope itemtype="https://schema.org/FAQPage">'
-        elif "faqpage" not in opening.lower():
-            opening = re.sub(
-                r"itemtype\s*=\s*['\"][^'\"]*['\"]",
-                'itemtype="https://schema.org/FAQPage"',
-                opening,
-                flags=re.I,
-            )
-
-        if 'itemprop="mainEntity"' in body or "itemprop='mainEntity'" in body:
-            return opening + body + closing
-
-        qa_re = re.compile(
-            r"<h3([^>]*)>([\s\S]*?)</h3>\s*<p([^>]*)>([\s\S]*?)</p>",
-            flags=re.I,
-        )
-
-        def _qa_repl(qa: re.Match) -> str:
-            q_attrs = qa.group(1) or ""
-            q_html = qa.group(2).strip()
-            a_attrs = qa.group(3) or ""
-            a_html = qa.group(4).strip()
-            return (
+        title_match = re.search(r"<h2[^>]*>([\s\S]*?)</h2>", body, flags=re.I)
+        title_text = _strip_tags_keep_case(title_match.group(1)) if title_match else "Perguntas Frequentes"
+        if not title_text:
+            title_text = "Perguntas Frequentes"
+        pairs = _extract_pairs(body)
+        if not pairs:
+            return match.group(0)
+        qa_html = []
+        for q, a in pairs:
+            qa_html.append(
                 '<div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">'
-                f'<h3{q_attrs} itemprop="name">{q_html}</h3>'
+                f'<h3 itemprop="name">{q}</h3>'
                 '<div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">'
-                f'<p{a_attrs} itemprop="text">{a_html}</p>'
+                f'<p itemprop="text">{a}</p>'
                 "</div>"
                 "</div>"
             )
-
-        body = qa_re.sub(_qa_repl, body)
-        return opening + body + closing
+        return (
+            '<section class="faq-section" itemscope itemtype="https://schema.org/FAQPage">'
+            f"<h2>{title_text}</h2>"
+            + "".join(qa_html)
+            + "</section>"
+        )
 
     return section_re.sub(_section_repl, html)
 
@@ -159,6 +191,7 @@ def sanitize_article_html(html: str) -> str:
     html = html.replace("**", "")
     html = _unwrap_script_paragraphs(html)
     html = _clip_to_article(html)
+    html = _unwrap_article_root(html)
     html = _demote_body_h1_to_h2(html)
     html = _ensure_faq_semantic_markup(html)
     html = _remove_trailing_noise(html)

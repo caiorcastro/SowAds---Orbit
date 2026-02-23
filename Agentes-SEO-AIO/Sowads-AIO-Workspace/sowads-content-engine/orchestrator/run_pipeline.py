@@ -79,6 +79,14 @@ GENERIC_OPENINGS = [
     "vivemos em uma era",
 ]
 
+STRUCTURE_PROFILES = [
+    ("Diagnostico-Playbook", "diagnóstico direto, causa-raiz, plano de ação e erros críticos"),
+    ("Tese-Framework-Decisao", "tese executiva, framework de decisão, próximos passos"),
+    ("Comparativo-Criterios", "comparação por critérios, trade-offs, recomendação por cenário"),
+    ("Operacao-90-Dias", "execução por fases com checkpoints operacionais e de negócio"),
+    ("Sintoma-Causa-Impacto", "sinais, causa, impacto, correção orientada por dados"),
+]
+
 CRITICAL_REASON_CODES = {
     "missing_blocks",
     "meta_title_too_long",
@@ -876,7 +884,7 @@ Meta Title: {meta_title}
 Meta Description: {meta_desc}
 
 === HTML PACKAGE — WORDPRESS READY ===
-<article>
+<div class="sowads-article-body">
   <p><strong>{headline}</strong>. Este conteúdo segue o padrão Sowads: sem H1 no corpo e com foco em leitura escaneável.</p>
 {body}
   <p>Em resumo, {keyword} só entrega consistência quando escala e qualidade caminham juntas, com IA e revisão humana.</p>
@@ -893,7 +901,7 @@ Meta Description: {meta_desc}
   </section>
   <script type=\"application/ld+json\">{{"@context":"https://schema.org","@type":"Article","headline":"{headline}","description":"{meta_desc}","author":{{"@type":"Organization","name":"Sowads"}},"publisher":{{"@type":"Organization","name":"Sowads"}},"datePublished":"2026-01-01T00:00:00Z","dateModified":"2026-01-01T00:00:00Z","mainEntityOfPage":{{"@type":"WebPage","@id":"https://resultsquad.com.br/"}}}}</script>
   <script type=\"application/ld+json\">{{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{{"@type":"Question","name":"{faq_q1}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a1}"}}}},{{"@type":"Question","name":"{faq_q2}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a2}"}}}},{{"@type":"Question","name":"{faq_q3}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a3}"}}}},{{"@type":"Question","name":"{faq_q4}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a4}"}}}},{{"@type":"Question","name":"{faq_q5}","acceptedAnswer":{{"@type":"Answer","text":"{faq_a5}"}}}}]}}</script>
-</article>
+</div>
 """
         return self._build_article_record(theme, item_id, version, html, "PENDING_QA")
 
@@ -926,10 +934,17 @@ Meta Description: {meta_desc}
             self.log("articles", "success", item_id=item_id, version=version, metrics={"mode": "test_fallback"})
             return rec
 
+        profile_idx = int(
+            hashlib.sha1(f"{self.batch_id}-{item_id}-{version}".encode("utf-8")).hexdigest(),
+            16,
+        ) % len(STRUCTURE_PROFILES)
+        profile_name, profile_rule = STRUCTURE_PROFILES[profile_idx]
+
         wrapper = (
             f"ID do Artigo: {item_id}\n"
             f"Batch ID: {self.batch_id}\n"
             f"Version: {version}\n"
+            f"Perfil estrutural selecionado: {profile_name}\n"
             + (f"Rewrite guidance: {rewrite_guidance}\n" if rewrite_guidance else "")
             + "\n"
             + self._apply_user_template(theme)
@@ -942,8 +957,10 @@ Meta Description: {meta_desc}
             + f"- Word count obrigatório entre {self.min_article_words} e {self.max_article_words}.\n"
             + "- Não inserir <h1> dentro do HTML package; o H1 é o título nativo do WordPress.\n"
             + "- O conteúdo no HTML package deve iniciar com introdução e depois H2/H3 (sem H1 no corpo).\n"
+            + f"- Perfil estrutural obrigatório deste artigo: {profile_name} ({profile_rule}).\n"
             + "- Estrutura é princípio, não molde fixo: adaptar seções ao tema sem copiar blocos/títulos padronizados.\n"
             + "- Não repetir blocos fixos, nomes padronizados ou ordem idêntica de seções entre temas diferentes.\n"
+            + "- Proibido usar headings literais: 'Painel tático', 'Resumo executivo em bullet points', 'Checklist de execução (30 dias)', 'Prioridade 1', 'Prioridade 2', 'Prioridade 3'.\n"
             + "- Usar 2 a 3 recursos visuais por artigo, escolhidos conforme o assunto: lista numerada, bullets, mini-checklist, tabela, blockquote, frases-âncora em negrito.\n"
             + "- Não usar todos os recursos no mesmo artigo; escolha apenas os que aumentam clareza do tema.\n"
             + "- O primeiro recurso visual estrutural (lista/tabela/blockquote/checklist) deve entrar após o 2º, 3º ou 4º parágrafo.\n"
@@ -966,7 +983,7 @@ Meta Description: {meta_desc}
             + "=== META INFORMATION ===\n"
             + "Meta Title: ...\nMeta Description: ...\n\n"
             + "=== HTML PACKAGE — WORDPRESS READY ===\n"
-            + "<article>...</article>\n"
+            + "<div class=\"sowads-article-body\">...</div>\n"
             + "Sem texto fora desses blocos. Sem links externos.\n\n"
             + "[USER]\n"
             + wrapper
@@ -1685,10 +1702,18 @@ Meta Description: {meta_desc}
         raw = re.sub(r"===\s*META INFORMATION\s*===", " ", raw, flags=re.I)
         raw = re.sub(r"===\s*HTML PACKAGE[^=]*===", " ", raw, flags=re.I)
 
-        # If there is an <article> root, prioritize its body.
-        article_match = re.search(r"<article\b[^>]*>(.*?)</article>", raw, flags=re.I | re.S)
-        if article_match:
-            raw = article_match.group(1)
+        # Prefer dedicated article-body root, fallback to legacy <article>.
+        body_match = re.search(
+            r"<div\b[^>]*class=[\"'][^\"']*sowads-article-body[^\"']*[\"'][^>]*>(.*?)</div>",
+            raw,
+            flags=re.I | re.S,
+        )
+        if body_match:
+            raw = body_match.group(1)
+        else:
+            article_match = re.search(r"<article\b[^>]*>(.*?)</article>", raw, flags=re.I | re.S)
+            if article_match:
+                raw = article_match.group(1)
 
         # Remove non-visual/script blocks before converting to plain text.
         raw = re.sub(r"<(script|style|noscript)[^>]*>.*?</\1>", " ", raw, flags=re.I | re.S)
