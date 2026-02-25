@@ -89,8 +89,8 @@ GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.5-flash
 
 # preços (opcional, para estimativa em log)
-GEMINI_INPUT_COST_PER_1M=0
-GEMINI_OUTPUT_COST_PER_1M=0
+GEMINI_INPUT_COST_PER_1M_USD=0
+GEMINI_OUTPUT_COST_PER_1M_USD=0
 
 # replicate (imagem)
 REPLICATE_API_TOKEN=...
@@ -101,7 +101,7 @@ WP_SSH_HOST=147.93.37.148
 WP_SSH_PORT=65002
 WP_SSH_USER=...
 WP_SSH_PASSWORD=...
-WP_PATH=/home/.../public_html
+WP_SSH_WP_PATH=/home/.../public_html
 ```
 
 ## 6) Contratos de dados
@@ -190,7 +190,16 @@ Regras anti-template IA:
 - banimento de moldes fixos repetidos em sequência
 - penalidade de repetição em headings/padrões de seção
 - parágrafos longos em série reduzem score e geram rewrite
+
+Padrão de geração vigente (aplicado por default):
+- diversidade estrutural por artigo (frame narrativo + mix visual);
+- segunda passada crítica (`articles_refine`) para quebrar padrão de template;
+- bloqueio duro de abertura genérica no 1º parágrafo;
+- tabelas simples (células curtas, sem reticências);
+- `max_rewrites` default do pipeline configurado para `0` (reescrita em loop só quando explicitamente habilitada por config).
 - negrito limitado a termos críticos e decisão operacional
+- `test_mode=false` por default no pipeline (produção por padrão).
+- retry de chamadas Gemini para erros transitórios com log real no `gemini_calls.jsonl`.
 
 ## 8) Logs e rastreabilidade
 
@@ -273,7 +282,76 @@ python orchestrator/publish_wp_cli.py \
   --ssh-port $WP_SSH_PORT \
   --ssh-user $WP_SSH_USER \
   --ssh-password "$WP_SSH_PASSWORD" \
-  --wp-path $WP_PATH
+  --wp-path $WP_SSH_WP_PATH
+```
+
+### 9.6 Reprocessar toda a base já gerada (snapshot + publish)
+
+Construir snapshot deduplicado (última versão por `id`) e republicar tudo:
+
+```bash
+python orchestrator/build_latest_articles_snapshot.py \
+  --articles-dir outputs/articles \
+  --output-csv outputs/articles/PUBLISH-all-latest.csv
+
+python orchestrator/publish_wp_cli.py \
+  --base . \
+  --articles-csv outputs/articles/PUBLISH-all-latest.csv \
+  --include-statuses APPROVED,PENDING_QA,REJECTED \
+  --status publish \
+  --ssh-host $WP_SSH_HOST \
+  --ssh-port $WP_SSH_PORT \
+  --ssh-user $WP_SSH_USER \
+  --ssh-password "$WP_SSH_PASSWORD" \
+  --wp-path $WP_SSH_WP_PATH
+```
+
+Regerar a base inteira com lógica vigente (não só republicar snapshot):
+
+```bash
+python orchestrator/run_pipeline_from_themes.py \
+  --base . \
+  --config orchestrator/config.all-generated.refresh.json \
+  --themes-file outputs/themes/all-generated-refresh_276.csv
+```
+
+### 9.7 Atualizar lote CORE (30) com lógica nova e manter como mais recente
+
+Regenerar os 30 temas CORE/BET com o modelo atualizado:
+
+```bash
+python orchestrator/run_pipeline_from_themes.py \
+  --base . \
+  --config orchestrator/config.core30.refresh.json \
+  --themes-file outputs/themes/bet-igaming-core_30_fixed.csv
+```
+
+Publicar resultado do batch:
+
+```bash
+python orchestrator/publish_wp_cli.py \
+  --base . \
+  --articles-csv data/batches/BATCH-core30-refresh-.../articles_v1.csv \
+  --include-statuses APPROVED,PENDING_QA,REJECTED \
+  --status publish \
+  --ssh-host $WP_SSH_HOST \
+  --ssh-port $WP_SSH_PORT \
+  --ssh-user $WP_SSH_USER \
+  --ssh-password "$WP_SSH_PASSWORD" \
+  --wp-path $WP_SSH_WP_PATH
+```
+
+Forçar os 30 IDs como posts mais recentes (ordenação cronológica):
+
+```bash
+python orchestrator/set_core_recency.py \
+  --themes-csv outputs/themes/bet-igaming-core_30_fixed.csv \
+  --ssh-host $WP_SSH_HOST \
+  --ssh-port $WP_SSH_PORT \
+  --ssh-user $WP_SSH_USER \
+  --ssh-password "$WP_SSH_PASSWORD" \
+  --wp-path $WP_SSH_WP_PATH \
+  --report-json outputs/reports/core30_recency_report.json
 ```
 
 ## 10) Utilitários de manutenção
@@ -310,6 +388,26 @@ python orchestrator/enforce_batch_constraints.py \
 ```bash
 python orchestrator/repair_article_packages.py ...
 python orchestrator/repair_h1_similarity.py ...
+```
+
+### 10.4 Snapshot deduplicado por ID (novo)
+
+```bash
+python orchestrator/build_latest_articles_snapshot.py \
+  --articles-dir outputs/articles \
+  --output-csv outputs/articles/PUBLISH-all-latest.csv
+```
+
+```bash
+python orchestrator/set_core_recency.py \
+  --base . \
+  --themes-csv outputs/themes/bet-igaming-core_30_fixed.csv \
+  --ssh-host $WP_SSH_HOST \
+  --ssh-port $WP_SSH_PORT \
+  --ssh-user $WP_SSH_USER \
+  --ssh-password "$WP_SSH_PASSWORD" \
+  --wp-path $WP_SSH_WP_PATH \
+  --report-json outputs/reports/core30_recency_report.json
 ```
 
 ## 11) Convenções de batch

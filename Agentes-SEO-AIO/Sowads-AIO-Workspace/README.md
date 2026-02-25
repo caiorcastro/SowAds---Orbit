@@ -372,7 +372,41 @@ python orchestrator/publish_wp_cli.py \
   --ssh-port $WP_SSH_PORT \
   --ssh-user $WP_SSH_USER \
   --ssh-password "$WP_SSH_PASSWORD" \
-  --wp-path $WP_PATH
+  --wp-path $WP_SSH_WP_PATH
+```
+
+Reprocessar toda a base já gerada (lógica vigente + publicação):
+
+```bash
+python orchestrator/run_pipeline_from_themes.py \
+  --base . \
+  --config orchestrator/config.all-generated.refresh.json \
+  --themes-file outputs/themes/all-generated-refresh_276.csv
+
+python orchestrator/publish_wp_cli.py \
+  --base . \
+  --articles-csv outputs/articles/BATCH-all-generated-refresh-..._articles.csv \
+  --include-statuses APPROVED,PENDING_QA,REJECTED \
+  --status publish \
+  --ssh-host $WP_SSH_HOST \
+  --ssh-port $WP_SSH_PORT \
+  --ssh-user $WP_SSH_USER \
+  --ssh-password "$WP_SSH_PASSWORD" \
+  --wp-path $WP_SSH_WP_PATH
+```
+
+Forçar os CORE 30 como mais recentes:
+
+```bash
+python orchestrator/set_core_recency.py \
+  --base . \
+  --themes-csv outputs/themes/bet-igaming-core_30_fixed.csv \
+  --ssh-host $WP_SSH_HOST \
+  --ssh-port $WP_SSH_PORT \
+  --ssh-user $WP_SSH_USER \
+  --ssh-password "$WP_SSH_PASSWORD" \
+  --wp-path $WP_SSH_WP_PATH \
+  --report-json outputs/reports/core30_recency_report.json
 ```
 
 ---

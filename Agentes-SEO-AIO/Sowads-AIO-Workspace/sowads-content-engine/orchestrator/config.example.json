@@ -7,13 +7,13 @@
   "batch_topic": "consultoria",
   "quantidade_temas": 5,
   "publish_mode": "draft",
-  "restricoes": "Sem promessas de resultado sem contexto; foco BR",
+  "restricoes": "Sem estrutura fixa repetida; abertura não genérica; blocos visuais naturais; tabelas simples e objetivas",
   "url_interna": "",
   "min_article_words": 900,
   "keyword_density_min_pct": 1.5,
   "keyword_density_max_pct": 2.0,
-  "test_mode": true,
-  "max_rewrites": 2,
+  "test_mode": false,
+  "max_rewrites": 0,
   "batch_id": "",
   "max_article_words": 1500
 }

@@ -1,0 +1,19 @@
+{
+  "nicho": "Marketing de performance, SEO, GEO e mídia para operações digitais",
+  "vertical_alvo": "Geral",
+  "porte_empresa_alvo": "Média Empresa",
+  "modelo_negocio_alvo": "B2B",
+  "produto_sowads_foco": "Ambos os pilares",
+  "quantidade_temas": 30,
+  "publish_mode": "draft",
+  "restricoes": "Sem estrutura fixa repetida; introdução sem abertura genérica; tabelas curtas e objetivas",
+  "url_interna": "",
+  "test_mode": false,
+  "max_rewrites": 0,
+  "batch_topic": "core30-refresh",
+  "batch_id": "",
+  "max_article_words": 1500,
+  "min_article_words": 900,
+  "keyword_density_min_pct": 1.5,
+  "keyword_density_max_pct": 2.0
+}

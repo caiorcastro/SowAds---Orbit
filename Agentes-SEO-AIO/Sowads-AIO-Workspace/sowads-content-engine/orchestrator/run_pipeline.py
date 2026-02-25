@@ -83,12 +83,39 @@ GENERIC_OPENINGS = [
     "com a evolucao da tecnologia",
 ]
 
+BANNED_OPENING_STARTS = [
+    "em 2026",
+    "atualmente",
+    "nos dias de hoje",
+    "no cenario atual",
+    "no mundo digital de hoje",
+    "em um mercado cada vez mais",
+]
+
 STRUCTURE_PROFILES = [
     ("Diagnostico-Playbook", "diagnóstico direto, causa-raiz, plano de ação e erros críticos"),
     ("Tese-Framework-Decisao", "tese executiva, framework de decisão, próximos passos"),
     ("Comparativo-Criterios", "comparação por critérios, trade-offs, recomendação por cenário"),
     ("Operacao-90-Dias", "execução por fases com checkpoints operacionais e de negócio"),
     ("Sintoma-Causa-Impacto", "sinais, causa, impacto, correção orientada por dados"),
+]
+
+NARRATIVE_FRAMES = [
+    ("Hipotese-Validacao", "abrir com hipótese executiva, validar com sinais e fechar com decisão"),
+    ("Diagnostico-Executivo", "abrir com sintoma operacional, destrinchar causa-raiz e fechar com plano"),
+    ("Playbook-Pratico", "abrir com meta de negócio, sequenciar ações e checkpoints de execução"),
+    ("Tradeoff-Decisao", "abrir com dilema real, comparar caminhos e recomendar decisão por cenário"),
+    ("Caso-Aplicado", "abrir com micro-cenário realista, extrair aprendizados e operacionalizar"),
+    ("Risco-Controle", "abrir com risco invisível, mapear impacto e definir controles preventivos"),
+]
+
+VISUAL_MIXES = [
+    ("Lista+Tabela", ["lista numerada", "tabela simples"]),
+    ("Bullets+Checklist", ["bullets objetivos", "mini-checklist"]),
+    ("Tabela+Blockquote", ["tabela simples", "blockquote de síntese"]),
+    ("Lista+Bullets+Anchor", ["lista numerada", "bullets", "frases-âncora em negrito"]),
+    ("Checklist+Tabela", ["mini-checklist", "tabela simples"]),
+    ("Bullets+Blockquote", ["bullets objetivos", "blockquote de decisão"]),
 ]
 
 CRITICAL_REASON_CODES = {
@@ -119,6 +146,9 @@ CRITICAL_REASON_CODES = {
     "fixed_blocks_detected",
     "repeated_structure_pattern",
     "examples_missing",
+    "hard_opening_banned",
+    "table_verbose",
+    "table_ellipsis",
 }
 
 
@@ -501,8 +531,9 @@ class Pipeline:
         self.async_root = base / ASYNC_ROOT
         ensure_dir(self.async_root)
 
-        self.test_mode = bool(cfg.get("test_mode", True))
-        self.max_rewrites = int(cfg.get("max_rewrites", 2))
+        self.test_mode = bool(cfg.get("test_mode", False))
+        # Default rewrite loop disabled: quality is enforced in generation + critic refine pass.
+        self.max_rewrites = int(cfg.get("max_rewrites", 0))
         self.threshold = 80
         self.min_article_words = int(cfg.get("min_article_words", 900))
         self.max_article_words = int(cfg.get("max_article_words", 1500))
@@ -655,6 +686,35 @@ class Pipeline:
             items.append(base)
         return items
 
+    def _gemini_generate_with_retry(
+        self,
+        prompt: str,
+        temperature: float,
+        context: dict,
+        attempts: int = 3,
+        backoff_seconds: float = 1.5,
+    ) -> str:
+        last_err = None
+        for i in range(1, attempts + 1):
+            try:
+                return self.gemini.generate_text(prompt, temperature=temperature, context=context)
+            except Exception as e:
+                last_err = e
+                msg = str(e).lower()
+                retryable = ("http 503" in msg) or ("http 429" in msg) or ("network error" in msg) or ("timed out" in msg)
+                if (not retryable) or i == attempts:
+                    raise
+                wait = backoff_seconds * i
+                self.log(
+                    "gemini",
+                    "retry",
+                    reason=f"retryable_error_attempt_{i}: {e}",
+                    item_id=context.get("id", ""),
+                    version=int(context.get("version", 0) or 0),
+                )
+                time.sleep(wait)
+        raise RuntimeError(f"Gemini retry exhausted: {last_err}")
+
     def agent01_generate_themes(self) -> List[dict]:
         n = int(self.cfg.get("quantidade_temas", 5))
         if self.test_mode:
@@ -716,8 +776,8 @@ Regras:
 """.strip()
         rows = []
         try:
-            text = self.gemini.generate_text(
-                prompt,
+            text = self._gemini_generate_with_retry(
+                prompt=prompt,
                 temperature=0.5,
                 context={
                     "phase": "themes",
@@ -828,7 +888,7 @@ Regras:
 
         if variant == 0:
             body = f"""
-  <p>Em 2026, {keyword} é a base para escalar operação sem perder padrão editorial. {context_line}</p>
+  <p>{keyword} se torna crítico quando a operação precisa escalar sem perder padrão editorial. {context_line}</p>
   <h2>Como {keyword} acelera decisões de mídia e SEO</h2>
   <p>A combinação de dados, IA e revisão humana reduz retrabalho e cria previsibilidade para times de crescimento.</p>
   <h2>Plano de execução de {keyword} em 90 dias</h2>
@@ -873,7 +933,7 @@ Regras:
   <p>Publicar em volume sem critério técnico aumenta ruído. A correção é usar revisão humana e score mínimo antes de publicar.</p>
 """
 
-        faq_q1 = f"Por que {keyword} é relevante em 2026?"
+        faq_q1 = f"Por que {keyword} é relevante para a operação atual?"
         faq_a1 = f"Porque conecta produção em escala com governança editorial e melhora previsibilidade de resultados."
         faq_q2 = f"Qual o papel da revisão humana em {keyword}?"
         faq_a2 = "Garantir contexto, precisão e aderência de marca antes da publicação."
@@ -910,6 +970,118 @@ Meta Description: {meta_desc}
 """
         return self._build_article_record(theme, item_id, version, html, "PENDING_QA")
 
+    def _extract_first_sentence(self, html: str) -> str:
+        first_p = re.search(r"<p[^>]*>([\s\S]*?)</p>", html or "", flags=re.I)
+        if not first_p:
+            return ""
+        text = strip_html(first_p.group(1)).strip()
+        if not text:
+            return ""
+        m = re.split(r"(?<=[\.\!\?])\s+", text, maxsplit=1)
+        return (m[0] if m else text)[:180].strip()
+
+    def _extract_h2_signature(self, html: str, limit: int = 5) -> str:
+        h2s = re.findall(r"<h2[^>]*>(.*?)</h2>", html or "", flags=re.I | re.S)
+        normalized = []
+        for h in h2s:
+            t = self._normalize_text(strip_html(h))
+            if t:
+                normalized.append(t)
+        return " | ".join(normalized[:limit])
+
+    def _collect_diversity_constraints(self, current: Dict[str, dict], target_id: str) -> dict:
+        avoid_openings: List[str] = []
+        avoid_h2: List[str] = []
+        if not current:
+            return {"avoid_openings": avoid_openings, "avoid_h2_signatures": avoid_h2}
+
+        rows: List[Tuple[int, str, str]] = []
+        for item_id, rec in current.items():
+            if item_id == target_id:
+                continue
+            _, html = self._parse_package(rec.get("content_package", ""))
+            first = self._extract_first_sentence(html)
+            h2sig = self._extract_h2_signature(html)
+            try:
+                version = int(rec.get("version", 1))
+            except Exception:
+                version = 1
+            rows.append((version, first, h2sig))
+
+        rows.sort(key=lambda x: x[0], reverse=True)
+        for _, first, h2sig in rows[:6]:
+            if first:
+                avoid_openings.append(first)
+            if h2sig:
+                avoid_h2.append(h2sig)
+
+        return {
+            "avoid_openings": avoid_openings[:4],
+            "avoid_h2_signatures": avoid_h2[:4],
+        }
+
+    def _pick_narrative_frame(self, item_id: str, version: int) -> Tuple[str, str]:
+        idx = int(hashlib.sha1(f"{self.batch_id}:{item_id}:{version}:frame".encode("utf-8")).hexdigest(), 16) % len(
+            NARRATIVE_FRAMES
+        )
+        return NARRATIVE_FRAMES[idx]
+
+    def _pick_visual_mix(self, item_id: str, version: int) -> Tuple[str, List[str]]:
+        idx = int(hashlib.sha1(f"{self.batch_id}:{item_id}:{version}:visual".encode("utf-8")).hexdigest(), 16) % len(
+            VISUAL_MIXES
+        )
+        return VISUAL_MIXES[idx]
+
+    def _refine_article_with_critic(
+        self,
+        draft_output: str,
+        theme: dict,
+        item_id: str,
+        version: int,
+        frame_name: str,
+        visual_pack_name: str,
+        visual_pack_items: List[str],
+        diversity_constraints: Optional[dict] = None,
+    ) -> str:
+        diversity_constraints = diversity_constraints or {}
+        avoid_openings = diversity_constraints.get("avoid_openings", [])
+        avoid_h2 = diversity_constraints.get("avoid_h2_signatures", [])
+
+        critic_prompt = (
+            "Você é um editor crítico de conteúdo SEO/GEO da Sowads.\n"
+            "Reescreva o artigo abaixo mantendo o mesmo tema e respeitando OBRIGATORIAMENTE:\n"
+            "- Não começar o primeiro parágrafo com 'Em 2026' nem variações equivalentes.\n"
+            "- Evitar estrutura rígida repetida; variar abertura, ordem de seções e ritmo.\n"
+            "- Garantir 2 a 3 elementos visuais naturais no miolo (após 2º ao 4º parágrafo).\n"
+            "- Tabelas simples: células curtas (até 10 palavras), sem reticências, sem texto truncado.\n"
+            "- Parágrafos curtos e fluídos (aprox. 30-65 palavras).\n"
+            "- Manter 2 blocos obrigatórios do pacote: META INFORMATION e HTML PACKAGE.\n"
+            "- Sem H1 no corpo. Sem links externos. FAQ com respostas completas.\n\n"
+            f"Frame narrativo alvo: {frame_name}\n"
+            f"Pacote visual alvo: {visual_pack_name} -> {', '.join(visual_pack_items)}\n"
+            + (f"Aberturas proibidas deste lote: {' || '.join(avoid_openings)}\n" if avoid_openings else "")
+            + (f"Assinaturas de H2 proibidas deste lote: {' || '.join(avoid_h2)}\n" if avoid_h2 else "")
+            + "\n[ARTIGO DRAFT PARA REFINAR]\n"
+            + (draft_output or "")
+        )
+        try:
+            refined = self._gemini_generate_with_retry(
+                prompt=critic_prompt,
+                temperature=0.45,
+                context={
+                    "phase": "articles_refine",
+                    "agent": "agent_02_article_critic_refiner",
+                    "batch_id": self.batch_id,
+                    "id": item_id,
+                    "version": version,
+                },
+            )
+            if "=== META INFORMATION ===" in refined and "=== HTML PACKAGE — WORDPRESS READY ===" in refined:
+                return refined
+        except Exception as e:
+            self.log("articles", "warn", reason=f"critic_refine_failed: {e}", item_id=item_id, version=version)
+        return draft_output
+
     def _build_article_record(self, theme: dict, item_id: str, version: int, raw_output: str, status: str) -> dict:
         meta_title, meta_desc, package = self._extract_blocks(raw_output)
         slug_base = meta_title or theme["tema_principal"]
@@ -933,7 +1105,14 @@ Meta Description: {meta_desc}
             "status": status,
         }
 
-    def _generate_article(self, theme: dict, item_id: str, version: int, rewrite_guidance: str = "") -> dict:
+    def _generate_article(
+        self,
+        theme: dict,
+        item_id: str,
+        version: int,
+        rewrite_guidance: str = "",
+        current_articles: Optional[Dict[str, dict]] = None,
+    ) -> dict:
         if self.test_mode:
             rec = self._article_fallback(theme, item_id, version, rewrite_guidance)
             self.log("articles", "success", item_id=item_id, version=version, metrics={"mode": "test_fallback"})
@@ -944,13 +1123,22 @@ Meta Description: {meta_desc}
             16,
         ) % len(STRUCTURE_PROFILES)
         profile_name, profile_rule = STRUCTURE_PROFILES[profile_idx]
+        narrative_frame_name, narrative_frame_rule = self._pick_narrative_frame(item_id, version)
+        visual_pack_name, visual_pack_items = self._pick_visual_mix(item_id, version)
+        diversity_constraints = self._collect_diversity_constraints(current_articles or {}, item_id)
+        avoid_openings = diversity_constraints.get("avoid_openings", [])
+        avoid_h2 = diversity_constraints.get("avoid_h2_signatures", [])
 
         wrapper = (
             f"ID do Artigo: {item_id}\n"
             f"Batch ID: {self.batch_id}\n"
             f"Version: {version}\n"
             f"Perfil estrutural selecionado: {profile_name}\n"
+            f"Frame narrativo selecionado: {narrative_frame_name} ({narrative_frame_rule})\n"
+            f"Pacote visual selecionado: {visual_pack_name} ({', '.join(visual_pack_items)})\n"
             + (f"Rewrite guidance: {rewrite_guidance}\n" if rewrite_guidance else "")
+            + (f"Aberturas proibidas neste lote: {' || '.join(avoid_openings)}\n" if avoid_openings else "")
+            + (f"Assinaturas H2 a evitar neste lote: {' || '.join(avoid_h2)}\n" if avoid_h2 else "")
             + "\n"
             + self._apply_user_template(theme)
         )
@@ -966,13 +1154,14 @@ Meta Description: {meta_desc}
             + "- Estrutura é princípio, não molde fixo: adaptar seções ao tema sem copiar blocos/títulos padronizados.\n"
             + "- Não repetir blocos fixos, nomes padronizados ou ordem idêntica de seções entre temas diferentes.\n"
             + "- Proibido usar headings literais: 'Painel tático', 'Resumo executivo em bullet points', 'Checklist de execução (30 dias)', 'Prioridade 1', 'Prioridade 2', 'Prioridade 3'.\n"
+            + "- PROIBIDO começar o primeiro parágrafo com: 'Em 2026', 'Atualmente', 'Nos dias de hoje', 'No cenário atual' ou equivalentes.\n"
             + "- Abertura obrigatória em 2 parágrafos curtos: contexto de decisão + impacto prático no negócio.\n"
             + "- Introdução deve trazer gancho forte e específico; evitar frases vagas e clichês de mercado.\n"
             + "- Usar 2 a 3 recursos visuais por artigo, escolhidos conforme o assunto: lista numerada, bullets, mini-checklist, tabela, blockquote, frases-âncora em negrito.\n"
             + "- Não usar todos os recursos no mesmo artigo; escolha apenas os que aumentam clareza do tema.\n"
             + "- O primeiro recurso visual estrutural (lista/tabela/blockquote/checklist) deve entrar após o 2º, 3º ou 4º parágrafo.\n"
             + "- Evitar bloco visual de apêndice no fim do artigo.\n"
-            + "- Tabela com células curtas e objetivas (sem reticências, sem texto truncado, sem '...').\n"
+            + "- Tabela com células curtas e objetivas (até 10 palavras por célula; sem reticências, sem texto truncado, sem '...').\n"
             + "- Parágrafos curtos: 30-65 palavras por parágrafo (máximo absoluto 85 palavras).\n"
             + "- Fluidez, clareza, elegância executiva e densidade sem prolixidade são prioritárias.\n"
             + "- Linguagem executiva clara: técnica sem soar acadêmica, pesada ou genérica.\n"
@@ -1000,8 +1189,8 @@ Meta Description: {meta_desc}
         )
 
         try:
-            raw = self.gemini.generate_text(
-                prompt,
+            raw = self._gemini_generate_with_retry(
+                prompt=prompt,
                 temperature=0.3 if self.test_mode else 0.35,
                 context={
                     "phase": "articles",
@@ -1010,6 +1199,16 @@ Meta Description: {meta_desc}
                     "id": item_id,
                     "version": version,
                 },
+            )
+            raw = self._refine_article_with_critic(
+                draft_output=raw,
+                theme=theme,
+                item_id=item_id,
+                version=version,
+                frame_name=narrative_frame_name,
+                visual_pack_name=visual_pack_name,
+                visual_pack_items=visual_pack_items,
+                diversity_constraints=diversity_constraints,
             )
             rec = self._build_article_record(theme, item_id, version, raw, "PENDING_QA")
             if not rec["content_package"]:
@@ -1029,11 +1228,17 @@ Meta Description: {meta_desc}
             if item_id in rewrite_map:
                 prev = out[item_id]
                 version = int(prev["version"]) + 1
-                rec = self._generate_article(t, item_id, version, rewrite_map[item_id])
+                rec = self._generate_article(
+                    t,
+                    item_id,
+                    version,
+                    rewrite_map[item_id],
+                    current_articles=out,
+                )
                 out[item_id] = rec
                 self.log("articles", "requeued", reason="rewrite_only", item_id=item_id, version=version)
             elif item_id not in out:
-                rec = self._generate_article(t, item_id, 1)
+                rec = self._generate_article(t, item_id, 1, current_articles=out)
                 out[item_id] = rec
                 self.log("articles", "success", item_id=item_id, version=1)
         return out
@@ -1291,15 +1496,24 @@ Meta Description: {meta_desc}
                     issues.append("Tabela sem estilo de grade legível (linhas/bordas cinza visíveis).")
                     score -= 4
                 verbose_cells = 0
+                ellipsis_cells = 0
                 for cell in re.findall(r"<t[dh][^>]*>([\s\S]*?)</t[dh]>", table_block, flags=re.I):
-                    cell_words = self._count_words(strip_html(cell))
-                    if cell_words > 18:
+                    cell_raw = strip_html(cell)
+                    cell_words = self._count_words(cell_raw)
+                    if cell_words > 10:
                         verbose_cells += 1
+                    if "..." in cell_raw:
+                        ellipsis_cells += 1
                 if verbose_cells > 0:
+                    reason_codes.append("table_verbose")
                     issues.append(
                         f"Tabela com células verbosas ({verbose_cells}); usar texto curto e objetivo nas colunas."
                     )
                     score -= min(8, verbose_cells * 2)
+                if ellipsis_cells > 0:
+                    reason_codes.append("table_ellipsis")
+                    issues.append("Tabela contém reticências ('...'); usar células completas e curtas, sem truncamento.")
+                    score -= min(8, ellipsis_cells * 2)
 
             # Paragraph readability guardrail (avoid giant walls of text).
             long_paragraphs = 0
@@ -1467,6 +1681,12 @@ Meta Description: {meta_desc}
                 reason_codes.append("generic_opening")
                 issues.append("Abertura genérica proibida.")
                 score -= 10
+            first_par = re.search(r"<p[^>]*>([\s\S]*?)</p>", html, flags=re.I)
+            first_par_norm = self._normalize_text(strip_html(first_par.group(1))) if first_par else ""
+            if any(first_par_norm.startswith(x) for x in BANNED_OPENING_STARTS):
+                reason_codes.append("hard_opening_banned")
+                issues.append("Primeiro parágrafo inicia com padrão proibido ('Em 2026'/'Atualmente'/similares).")
+                score -= 16
 
             temporal_text = strip_html(html).lower()
             # Allow source-year citations (e.g., "Bain, 2025"), but block contextual present-time framing in 2024/2025.
