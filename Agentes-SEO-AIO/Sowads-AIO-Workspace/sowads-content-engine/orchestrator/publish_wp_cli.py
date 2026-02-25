@@ -451,7 +451,9 @@ def run_remote_publish(
             + shlex.quote("\n".join(script_lines))
         )
         try:
-            output = shell_with_password(remote_cmd, password, timeout=1800)
+            # Per-item timeout must be bounded; a single stuck WP-CLI command
+            # cannot block an entire large publish job for hours.
+            output = shell_with_password(remote_cmd, password, timeout=180)
             m = re.search(r"RESULT\|(\d+)\|(\d+)\|([a-zA-Z_]+)", output)
             if not m:
                 raise RuntimeError("No RESULT marker returned by remote command")
