@@ -225,6 +225,125 @@ def _split_long_paragraphs(html: str, max_words: int = 70, target_words: int = 4
     return paragraph_re.sub(_repl, html)
 
 
+def _append_inline_style(attrs: str, css: str) -> str:
+    attrs = attrs or ""
+    m = re.search(r'style\s*=\s*["\']([^"\']*)["\']', attrs, flags=re.I)
+    if m:
+        existing = (m.group(1) or "").strip()
+        merged = f"{existing};{css}" if existing else css
+        return re.sub(
+            r'style\s*=\s*["\'][^"\']*["\']',
+            f'style="{merged}"',
+            attrs,
+            flags=re.I,
+            count=1,
+        )
+    if attrs and not attrs.startswith(" "):
+        attrs = " " + attrs
+    return f'{attrs} style="{css}"'
+
+
+def _apply_tag_style(html: str, tag: str, css: str) -> str:
+    pattern = re.compile(rf"<{tag}\b([^>]*)>", flags=re.I)
+
+    def repl(m: re.Match) -> str:
+        attrs = m.group(1) or ""
+        styled = _append_inline_style(attrs, css)
+        return f"<{tag}{styled}>"
+
+    return pattern.sub(repl, html)
+
+
+def _ensure_table_readability_styles(html: str) -> str:
+    html = _apply_tag_style(
+        html,
+        "table",
+        "width:100%;border-collapse:collapse;margin:24px 0;font-size:14px;line-height:1.55;color:#1f2937;background:#ffffff;",
+    )
+    html = _apply_tag_style(
+        html,
+        "thead",
+        "background:#f3f4f6;color:#111827;",
+    )
+    html = _apply_tag_style(
+        html,
+        "th",
+        "border:1px solid #d1d5db;padding:10px 12px;text-align:left;font-size:13px;font-weight:700;color:#111827;background:#f3f4f6;",
+    )
+    html = _apply_tag_style(
+        html,
+        "td",
+        "border:1px solid #d1d5db;padding:10px 12px;font-size:14px;line-height:1.55;color:#1f2937;background:#ffffff;vertical-align:top;",
+    )
+    html = _apply_tag_style(
+        html,
+        "caption",
+        "margin-bottom:8px;font-size:12px;color:#6b7280;text-align:left;",
+    )
+    return html
+
+
+def _ensure_faq_visual_styles(html: str) -> str:
+    section_re = re.compile(
+        r"(<section[^>]*class=[\"'][^\"']*faq-section[^\"']*[\"'][^>]*>)([\s\S]*?)(</section>)",
+        flags=re.I,
+    )
+
+    def repl(match: re.Match) -> str:
+        opening = match.group(1)
+        body = match.group(2)
+        closing = match.group(3)
+
+        opening = re.sub(
+            r"<section\b([^>]*)>",
+            lambda m: "<section"
+            + _append_inline_style(
+                m.group(1) or "",
+                "margin:40px 0 12px;padding:20px 22px;border:1px solid #d1d5db;border-radius:12px;background:#f8fafc;color:#111827;",
+            )
+            + ">",
+            opening,
+            flags=re.I,
+        )
+        body = re.sub(
+            r"<h2\b([^>]*)>",
+            lambda m: "<h2"
+            + _append_inline_style(
+                m.group(1) or "",
+                "margin:0 0 14px;font-size:22px;line-height:1.3;font-weight:700;color:#0f172a;",
+            )
+            + ">",
+            body,
+            flags=re.I,
+            count=1,
+        )
+        body = re.sub(
+            r"<h3\b([^>]*)>",
+            lambda m: "<h3"
+            + _append_inline_style(
+                m.group(1) or "",
+                "margin:14px 0 6px;font-size:16px;line-height:1.45;font-weight:650;color:#111827;",
+            )
+            + ">",
+            body,
+            flags=re.I,
+        )
+        body = re.sub(
+            r"<p\b([^>]*)>",
+            lambda m: "<p"
+            + _append_inline_style(
+                m.group(1) or "",
+                "margin:0 0 12px;font-size:15px;line-height:1.7;font-weight:400;color:#374151;",
+            )
+            + ">",
+            body,
+            flags=re.I,
+        )
+        return opening + body + closing
+
+    return section_re.sub(repl, html)
+
+
 def sanitize_article_html(html: str) -> str:
     html = _normalize_newlines(html)
     html = _remove_trailing_noise(html)
@@ -242,6 +361,8 @@ def sanitize_article_html(html: str) -> str:
     html = _demote_body_h1_to_h2(html)
     html = _split_long_paragraphs(html)
     html = _ensure_faq_semantic_markup(html)
+    html = _ensure_table_readability_styles(html)
+    html = _ensure_faq_visual_styles(html)
     html = _remove_trailing_noise(html)
     html = _unwrap_script_paragraphs(html)
     html = _dedupe_repeated_trailing_paragraphs(html)

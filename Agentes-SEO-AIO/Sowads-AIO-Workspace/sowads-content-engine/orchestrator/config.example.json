@@ -13,7 +13,8 @@
   "keyword_density_min_pct": 1.5,
   "keyword_density_max_pct": 2.0,
   "test_mode": false,
-  "max_rewrites": 0,
+  "max_rewrites": 3,
+  "audit_threshold": 80,
   "batch_id": "",
   "max_article_words": 1500
 }

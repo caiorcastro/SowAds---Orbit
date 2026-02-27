@@ -79,6 +79,32 @@ python orchestrator/set_core_recency.py \
   --wp-path $WP_SSH_WP_PATH
 ```
 
+## Monitoramento em tempo real
+### 1) Terminal live por agente
+```bash
+./orchestrator/monitor_agents.sh .
+```
+
+Com intervalo customizado (em segundos) e batch fixo:
+```bash
+./orchestrator/monitor_agents.sh . 3 BATCH-core30-refresh-20260227-185750
+```
+
+### 2) Snapshot único (JSON)
+```bash
+python orchestrator/agent_status.py --base . --format json
+```
+
+### 3) Dashboard web (auto-refresh)
+```bash
+python orchestrator/serve_agent_status.py --base . --host 127.0.0.1 --port 8787
+```
+
+Abrir no navegador:
+- `http://127.0.0.1:8787/`
+- API bruta: `http://127.0.0.1:8787/api/status`
+- API para batch específico: `http://127.0.0.1:8787/api/status?batch=BATCH-...`
+
 ## Matriz de entradas por agente isolado
 - `agent01`: usa apenas `config`.
 - `agent02`: opcional `--themes-file`.

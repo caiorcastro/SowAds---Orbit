@@ -254,15 +254,41 @@ def parse_batch_id_from_row_or_file(row: dict, file_name: str) -> str:
     return file_name.rsplit(".", 1)[0]
 
 
+def load_audit_map_for_batch(base: Path, batch_id: str) -> Dict[str, dict]:
+    candidates = [
+        base / "outputs/audits" / f"{batch_id}_seo_audit.json",
+        base / "data/batches" / batch_id / "seo_audit.json",
+    ]
+    for p in candidates:
+        if not p.exists():
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            items = data.get("items", [])
+            out = {}
+            for it in items:
+                iid = str(it.get("id", "")).strip()
+                if iid:
+                    out[iid] = it
+            if out:
+                return out
+        except Exception:
+            continue
+    return {}
+
+
 def collect_posts(
     base: Path,
     batch_id_filter: str = "",
     include_statuses: Optional[List[str]] = None,
     articles_csv: str = "",
+    enforce_audit_gate: bool = True,
+    audit_threshold: int = 80,
 ) -> List[dict]:
     rows: List[dict] = []
     batch_id_filter = (batch_id_filter or "").strip()
     allowed_statuses = {(s or "").strip().upper() for s in (include_statuses or ["APPROVED"]) if (s or "").strip()}
+    audit_cache: Dict[str, Dict[str, dict]] = {}
 
     files: List[Path] = []
     if articles_csv:
@@ -282,6 +308,18 @@ def collect_posts(
             batch_id = parse_batch_id_from_row_or_file(r, f.name)
             if batch_id_filter and batch_id != batch_id_filter:
                 continue
+            if enforce_audit_gate:
+                if batch_id not in audit_cache:
+                    audit_cache[batch_id] = load_audit_map_for_batch(base, batch_id)
+                audit_item = audit_cache.get(batch_id, {}).get(str(r.get("id", "")).strip())
+                if not audit_item:
+                    continue
+                score = float(audit_item.get("seo_geo_score", 0) or 0)
+                flags = audit_item.get("flags", {}) if isinstance(audit_item.get("flags", {}), dict) else {}
+                if score < float(audit_threshold):
+                    continue
+                if bool(flags.get("flag_rewrite", False)):
+                    continue
             rows.append({**r, "_batch_id": batch_id})
     return rows
 
@@ -302,12 +340,16 @@ def build_publish_job(
     batch_id_filter: str = "",
     include_statuses: Optional[List[str]] = None,
     articles_csv: str = "",
+    enforce_audit_gate: bool = True,
+    audit_threshold: int = 80,
 ) -> Dict[str, object]:
     selected_rows = collect_posts(
         base,
         batch_id_filter=batch_id_filter,
         include_statuses=include_statuses,
         articles_csv=articles_csv,
+        enforce_audit_gate=enforce_audit_gate,
+        audit_threshold=audit_threshold,
     )
     job_id = "PUB-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     job_dir = base / "outputs/publish-jobs" / job_id
@@ -517,6 +559,8 @@ def main():
         default="APPROVED",
         help="Statuses aceitos no CSV de artigos (csv list), ex: APPROVED,PENDING_QA,REJECTED",
     )
+    parser.add_argument("--audit-threshold", type=int, default=80, help="Score mínimo SEO/GEO para permitir publicação")
+    parser.add_argument("--skip-audit-gate", action="store_true", help="Ignora gate de auditoria (não recomendado)")
     parser.add_argument("--articles-csv", default="", help="CSV específico de artigos para publicar")
     parser.add_argument("--wp-path", default="")
     parser.add_argument("--ssh-host", default=os.getenv("WP_SSH_HOST", ""))
@@ -545,6 +589,8 @@ def main():
         batch_id_filter=args.batch_id,
         include_statuses=include_statuses,
         articles_csv=args.articles_csv,
+        enforce_audit_gate=not bool(args.skip_audit_gate),
+        audit_threshold=int(args.audit_threshold),
     )
     job_id = str(job["job_id"])
     job_dir = Path(job["job_dir"])

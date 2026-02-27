@@ -64,7 +64,7 @@ def main() -> None:
 
     approved = {}
     for item_id, a in article_state.items():
-        if audit_map[item_id]["seo_geo_score"] >= 80 and not audit_map[item_id]["flags"]["flag_rewrite"] and sim_map[item_id]["similarity_score"] <= 60:
+        if audit_map[item_id]["seo_geo_score"] >= pipe.threshold and not audit_map[item_id]["flags"]["flag_rewrite"] and sim_map[item_id]["similarity_score"] <= 60:
             a["status"] = "APPROVED"
             approved[item_id] = a
         else:

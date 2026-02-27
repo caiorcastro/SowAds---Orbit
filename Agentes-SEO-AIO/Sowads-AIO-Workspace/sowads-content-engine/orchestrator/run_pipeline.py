@@ -534,7 +534,7 @@ class Pipeline:
         self.test_mode = bool(cfg.get("test_mode", False))
         # Default rewrite loop disabled: quality is enforced in generation + critic refine pass.
         self.max_rewrites = int(cfg.get("max_rewrites", 0))
-        self.threshold = 80
+        self.threshold = int(cfg.get("audit_threshold", 80))
         self.min_article_words = int(cfg.get("min_article_words", 900))
         self.max_article_words = int(cfg.get("max_article_words", 1500))
         self.keyword_density_min = float(cfg.get("keyword_density_min_pct", 1.5))
@@ -2090,7 +2090,7 @@ No text, no watermark, no logo.
             audit = audit_map[item_id]
             sim = sim_map[item_id]
             critical = bool(CRITICAL_REASON_CODES.intersection(audit["flags"]["reason_codes"]))
-            if audit["seo_geo_score"] < 80 or sim["similarity_score"] > 60 or critical:
+            if audit["seo_geo_score"] < self.threshold or sim["similarity_score"] > 60 or critical:
                 failed.append(
                     {
                         "id": item_id,
@@ -2315,7 +2315,11 @@ No text, no watermark, no logo.
 
         approved = {}
         for item_id, a in article_state.items():
-            if audit_map[item_id]["seo_geo_score"] >= 80 and not audit_map[item_id]["flags"]["flag_rewrite"] and sim_map[item_id]["similarity_score"] <= 60:
+            if (
+                audit_map[item_id]["seo_geo_score"] >= self.threshold
+                and not audit_map[item_id]["flags"]["flag_rewrite"]
+                and sim_map[item_id]["similarity_score"] <= 60
+            ):
                 a["status"] = "APPROVED"
                 approved[item_id] = a
             else:

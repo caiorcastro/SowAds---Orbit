@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOWADS Agent Status</title>
+  <style>
+    :root {
+      --bg: #101214;
+      --panel: #171a1f;
+      --line: #2b313a;
+      --text: #e8edf3;
+      --muted: #9aa6b2;
+      --ok: #2ecc71;
+      --warn: #f39c12;
+      --bad: #e74c3c;
+    }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .top { display: grid; gap: 8px; margin-bottom: 12px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    .muted { color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 8px; }
+    .ok { background: var(--ok); }
+    .warn { background: var(--warn); }
+    .bad { background: var(--bad); }
+    .tiny { font-size: 11px; color: var(--muted); }
+    code { color: #8ab4f8; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="card">
+        <div><strong>SOWADS Agent Dashboard</strong></div>
+        <div id="meta" class="tiny">Loading...</div>
+      </div>
+      <div class="card">
+        <div id="phases" class="tiny">Phase counts: ...</div>
+        <div id="procs" class="tiny">Processes: ...</div>
+      </div>
+    </div>
+    <div class="card">
+      <table id="agents">
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>Events</th>
+            <th>Phases</th>
+            <th>Last Status</th>
+            <th>Last Phase</th>
+            <th>Last ID</th>
+            <th>Last Timestamp</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    function statusClass(status) {
+      const s = (status || "").toLowerCase();
+      if (s === "success" || s === "start" || s === "dry_run" || s === "publish" || s === "draft" || s === "requeued") return "ok";
+      if (s === "warn" || s === "retry") return "warn";
+      return "bad";
+    }
+
+    function dot(status) {
+      const cls = statusClass(status);
+      return `<span class="dot ${cls}"></span>`;
+    }
+
+    async function refresh() {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      document.getElementById("meta").innerHTML =
+        `Batch: <code>${data.batch_id || "(none)"}</code> · Updated: ${data.generated_at} · Events: ${data.total_events}`;
+      document.getElementById("phases").textContent = "Phase counts: " + JSON.stringify(data.phase_counts || {});
+      const procs = (data.running_processes || []).map(p => `PID=${p.pid} (${p.elapsed_s}s) ${p.cmd}`);
+      document.getElementById("procs").textContent = "Processes: " + (procs.length ? procs.join(" | ") : "none");
+
+      const tbody = document.querySelector("#agents tbody");
+      tbody.innerHTML = "";
+      for (const a of (data.agents || [])) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${a.agent}</td>
+          <td>${a.event_count}</td>
+          <td>${(a.phases || []).join(", ")}</td>
+          <td>${dot(a.last_status)}${a.last_status || ""}</td>
+          <td>${a.last_phase || ""}</td>
+          <td>${a.last_id || ""}</td>
+          <td>${a.last_timestamp || ""}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>
+
